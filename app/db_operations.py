@@ -4,7 +4,7 @@ from datetime import datetime
 from aiogram.types import User
 
 # Connect to SQLite database (or create it if it doesn't exist)
-conn = sqlite3.connect("../olx_notify.db")
+conn = sqlite3.connect("olx_notify.db")
 cur = conn.cursor()
 
 # Create user table
@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS user (
     full_name TEXT,
     first_name TEXT,
     last_name TEXT,
-    had_checker_queries BOOLEAN,
     is_active BOOLEAN,
     created_at DATETIME
 )
@@ -82,9 +81,9 @@ def register_new_user(user: User):
 
     # Insert a new user into the user table
     cursor.execute('''
-        INSERT INTO user (user_telegram_id, username, full_name, first_name, last_name, had_checker_queries, is_active, 
+        INSERT INTO user (user_telegram_id, username, full_name, first_name, last_name, is_active, 
         created_at)
-        VALUES (?, ?, ?, ?, ?, 0, 1, ?)
+        VALUES (?, ?, ?, ?, ?, 1, ?)
         ''', (user.id, user.username, user.full_name, user.first_name, user.last_name, created_at))
 
     # Commit the changes and close the connection
@@ -142,6 +141,26 @@ def set_checker_query_deleted(query_id):
     cursor.close()
 
 
+def has_user_active_checker_queries(user_telegram_id):
+    cursor = conn.cursor()
+
+    # Execute the query to check for active checker queries
+    cursor.execute('''
+    SELECT 1
+    FROM checker_query
+    WHERE user_telegram_id = ? AND is_active = 1 AND is_deleted = 0
+    LIMIT 1
+    ''', (user_telegram_id,))
+
+    # Fetch the result
+    exists = cursor.fetchone() is not None
+
+    # Close the connection
+    cursor.close()
+
+    return exists
+
+
 def count_active_checker_queries(user_telegram_id):
     cursor = conn.cursor()
 
@@ -178,6 +197,26 @@ def count_inactive_checker_queries(user_telegram_id):
     cursor.close()
 
     return int(count)
+
+
+def check_query_url_exists(user_telegram_id, query_url):
+    cursor = conn.cursor()
+
+    # Execute the query to check for existence
+    cursor.execute('''
+    SELECT 1
+    FROM checker_query
+    WHERE user_telegram_id = ? AND query_url = ?
+    LIMIT 1
+    ''', (user_telegram_id, query_url,))
+
+    # Fetch the result
+    exists = cursor.fetchone() is not None
+
+    # Close the connection
+    cursor.close()
+
+    return exists
 
 
 def create_new_found_ad(query_id, ad_url, ad_description, ad_price, currency):

@@ -27,7 +27,7 @@ async def main() -> None:
 
 
 async def check_new_ads():
-    await bot.send_message(396264878, "Повідомлення кожні 5 секунд", parse_mode=ParseMode.HTML)
+    await bot.send_message(396264878, "Повідомлення кожні 30 секунд", parse_mode=ParseMode.HTML)
 
 
 if __name__ == "__main__":
