@@ -1,17 +1,15 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def get_add_new_query_keyboard():
-    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='Додати новий моніторинг')]],
-                               resize_keyboard=True,
-                               input_field_placeholder='Оберіть пункт меню...')
+def get_start_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Додати новий моніторинг', callback_data='new_query')]])
 
 
 def get_add_new_or_edit_query_keyboard():
-    return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='Додати новий моніторинг')],
-                                         [KeyboardButton(text='Керувати поточними моніторингами')]],
-                               resize_keyboard=True,
-                               input_field_placeholder='Оберіть пункт меню...')
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Додати новий моніторинг', callback_data='new_query')],
+        [InlineKeyboardButton(text='Керувати поточними моніторингами', callback_data='edit_queries')]])
 
 
 def get_add_new_query_menu_inline_keyboard():
