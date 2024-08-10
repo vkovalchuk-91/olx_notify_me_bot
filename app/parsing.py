@@ -2,10 +2,17 @@ import logging
 
 import requests
 from bs4 import BeautifulSoup
+from requests.exceptions import MissingSchema, ConnectionError
 
 HEADERS = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0',
            'accept': '*/*'}
 HOST = 'http://www.olx.ua'
+
+
+class IncorrectURL(Exception):
+    def __init__(self, message="Введений вами URL є некоректним"):
+        self.message = message
+        super().__init__(self.message)
 
 
 def parse(url):
@@ -32,8 +39,11 @@ def get_responses_text_list(url):
 
 
 def get_html(url, params=None):
-    req = requests.get(url, headers=HEADERS, params=params)
-    return req
+    try:
+        req = requests.get(url, headers=HEADERS, params=params)
+        return req
+    except (ConnectionError, MissingSchema):
+        raise IncorrectURL()
 
 
 def get_pagination_forward_page_url_if_exist(response):
