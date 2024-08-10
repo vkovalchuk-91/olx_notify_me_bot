@@ -24,12 +24,6 @@ class AddNewCheckerQueryByQueryText(StatesGroup):
     query_text = State()
 
 
-# # Функція для відправки стартового повідомлення всім новим користувачам
-# @main_router.message(lambda message: message.from_user.is_bot == False)
-# async def start_message(message: Message):
-#     await message.answer("Привіт! Це стартове повідомлення, яке ти отримав одразу.")
-
-
 @main_router.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
     """
@@ -46,14 +40,14 @@ async def command_start_handler(message: Message) -> None:
 
 @main_router.callback_query(F.data == 'new_query')
 async def command_add_new_query_handler(callback: CallbackQuery) -> None:
-    await callback.answer('12345')
+    await callback.answer('')
     await callback.message.answer(f"Оберіть спосіб додавання нового моніторингу!",
                                   reply_markup=get_add_new_query_menu_inline_keyboard())
 
 
 @main_router.callback_query(F.data == 'query_by_url')
 async def add_query_by_url_step1(callback: CallbackQuery, state: FSMContext):
-    await callback.answer('12345')
+    await callback.answer('')
     await state.set_state(AddNewCheckerQueryByURL.query_name)
     await callback.message.answer('Введіть назву запиту:')
 
@@ -92,7 +86,7 @@ async def add_query_by_url_step3(message: Message, state: FSMContext):
 
 @main_router.callback_query(F.data == 'query_by_text')
 async def add_query_by_text_step1(callback: CallbackQuery, state: FSMContext):
-    await callback.answer('12345')
+    await callback.answer('')
     await state.set_state(AddNewCheckerQueryByQueryText.query_text)
     await callback.message.answer('Введіть текст запиту:')
 
@@ -115,22 +109,3 @@ async def add_query_by_text_step2(message: Message, state: FSMContext):
     else:
         await message.answer(f'В переліку вже існує моніторинг з URL запиту: {html.bold(query_url)}')
     await state.clear()
-
-# @main_router.message(F.text == 'text64647')
-# async def command_add_new_query_handler(message: Message, command: CommandObject) -> None:
-#     await message.answer(f"Hellooooo, {command.args}!")
-#
-#
-# @main_router.message()
-# async def echo_handler(message: Message) -> None:
-#     """
-#     Handler will forward receive a message back to the sender
-#
-#     By default, message handler will handle all message types (like a text, photo, sticker etc.)
-#     """
-#     try:
-#         # Send a copy of the received message
-#         await message.send_copy(chat_id=message.chat.id)
-#     except TypeError:
-#         # But not all the types is supported to be copied so need to handle it
-#         await message.answer("Nice try!")

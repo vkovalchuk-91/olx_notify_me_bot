@@ -99,7 +99,7 @@ async def create_new_checker_query(user_telegram_id, query_name, query_url):
 async def get_all_active_checker_queries():
     async with aiosqlite.connect(DATABASE_PATH) as db:
         cursor = await db.execute('''
-        SELECT query_id, user_telegram_id, query_url, is_active, is_deleted, created_at
+        SELECT query_id, user_telegram_id, query_name, query_url, is_active, is_deleted, created_at
         FROM checker_query
         WHERE is_active = 1 AND is_deleted = 0
         ''')
@@ -112,10 +112,11 @@ async def get_all_active_checker_queries():
         active_queries.append({
             'query_id': row[0],
             'user_telegram_id': row[1],
-            'query_url': row[2],
-            'is_active': row[3],
-            'is_deleted': row[4],
-            'created_at': row[5]
+            'query_name': row[2],
+            'query_url': row[3],
+            'is_active': row[4],
+            'is_deleted': row[5],
+            'created_at': row[6]
         })
 
     return active_queries
