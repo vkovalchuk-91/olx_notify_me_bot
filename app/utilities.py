@@ -11,7 +11,7 @@ async def get_message_text_for_existing_user(user: User):
     inactive_checker_queries = await count_inactive_checker_queries(user.id)
     queries_count_string = f"Кількість активних моніторингів {active_checker_queries}"
     if inactive_checker_queries > 0:
-        queries_count_string += f" (+{inactive_checker_queries} деактивованих моніторингів)"
+        queries_count_string += f" (+{inactive_checker_queries} - деактивовано)"
     return (f"Вітаю, {html.bold(user.full_name)}!"
             f"\n{queries_count_string}")
 

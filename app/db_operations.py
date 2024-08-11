@@ -122,12 +122,12 @@ async def get_all_active_checker_queries():
     return active_queries
 
 
-async def get_active_checker_queries_by_user(user_telegram_id):
+async def get_checker_queries_by_user(user_telegram_id):
     async with aiosqlite.connect(DATABASE_PATH) as db:
         cursor = await db.execute('''
-        SELECT query_id, user_telegram_id, query_url, is_active, is_deleted, created_at
+        SELECT query_id, user_telegram_id, query_name, query_url, is_active, is_deleted, created_at
         FROM checker_query
-        WHERE user_telegram_id = ? AND is_active = 1 AND is_deleted = 0
+        WHERE user_telegram_id = ? AND is_deleted = 0
         ''', (user_telegram_id,))
 
         rows = await cursor.fetchall()
@@ -138,13 +138,34 @@ async def get_active_checker_queries_by_user(user_telegram_id):
         active_queries.append({
             'query_id': row[0],
             'user_telegram_id': row[1],
-            'query_url': row[2],
-            'is_active': row[3],
-            'is_deleted': row[4],
-            'created_at': row[5]
+            'query_name': row[2],
+            'query_url': row[3],
+            'is_active': row[4],
+            'is_deleted': row[5],
+            'created_at': row[6]
         })
 
     return active_queries
+
+
+async def get_checker_query_by_id(query_id):
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        cursor = await db.execute('''
+        SELECT * FROM checker_query WHERE query_id = ?
+        ''', (query_id,))
+
+        row = await cursor.fetchone()
+        await cursor.close()
+
+    return {
+            'query_id': row[0],
+            'user_telegram_id': row[1],
+            'query_name': row[2],
+            'query_url': row[3],
+            'is_active': row[4],
+            'is_deleted': row[5],
+            'created_at': row[6]
+    }
 
 
 async def update_checker_query_is_active(query_id, is_active):

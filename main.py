@@ -10,7 +10,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.check_new_ads_service import check_new_ads
 from app.db_operations import initialize_db
-from app.handlers import main_router
+from app.handlers import main_router, set_commands
 
 # Bot token can be obtained via https://t.me/BotFather
 TOKEN = "7303853478:AAGfhzzyiBWesLXG1mEanMucQJwECUBoxRk"
@@ -23,10 +23,11 @@ dp = Dispatcher()
 async def main() -> None:
     # And the run events dispatching
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(partial(check_new_ads, bot), "interval", seconds=30)
+    scheduler.add_job(partial(check_new_ads, bot), "interval", minutes=2)
     scheduler.start()
-    dp.include_router(main_router)
     await initialize_db()
+    await set_commands(bot)
+    dp.include_router(main_router)
     await dp.start_polling(bot)
 
 

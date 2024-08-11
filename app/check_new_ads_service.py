@@ -30,17 +30,17 @@ async def check_new_ads(bot):
                                        f"{html.bold("Ціна: ")}{parsed_ad['ad_price']} {parsed_ad['currency']}\n"
                                        f"{html.bold("URL: ")}{parsed_ad['ad_url']}",
                                        parse_mode=ParseMode.HTML)
-            elif parsed_ad['ad_url'] in saved_in_db_deactivated_urls:  # Перевіряємо чи було щойно зпарсяне
+            # elif parsed_ad['ad_url'] in saved_in_db_deactivated_urls:  # Перевіряємо чи було щойно зпарсяне
                 # повідомлення в базі зі статусом is_active=0
-                ad_id = saved_in_db_deactivated_ads[parsed_ad['ad_url']]
-                await update_found_ad_is_active(ad_id, True)
-                await bot.send_message(query['user_telegram_id'],
-                                       f"{html.bold("Оголошення стало знову активним!")}\n"
-                                       f"{html.bold("Запит: ")}{query['query_name']}\n"
-                                       f"{html.bold("Опис: ")}{parsed_ad['ad_description']}\n"
-                                       f"{html.bold("Ціна: ")}{parsed_ad['ad_price']} {parsed_ad['currency']}\n"
-                                       f"{html.bold("URL: ")}{parsed_ad['ad_url']}",
-                                       parse_mode=ParseMode.HTML)
+                # ad_id = saved_in_db_deactivated_ads[parsed_ad['ad_url']]
+                # await update_found_ad_is_active(ad_id, True)
+                # await bot.send_message(query['user_telegram_id'],
+                #                        f"{html.bold("Оголошення стало знову активним!")}\n"
+                #                        f"{html.bold("Запит: ")}{query['query_name']}\n"
+                #                        f"{html.bold("Опис: ")}{parsed_ad['ad_description']}\n"
+                #                        f"{html.bold("Ціна: ")}{parsed_ad['ad_price']} {parsed_ad['currency']}\n"
+                #                        f"{html.bold("URL: ")}{parsed_ad['ad_url']}",
+                #                        parse_mode=ParseMode.HTML)
 
         # Деактивуємо оголошення, які вже не шукаються при парсингу
         for ad_in_db in saved_in_db_ads:

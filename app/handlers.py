@@ -1,13 +1,14 @@
 from aiogram import Router, F, html
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import BotCommand, BotCommandScopeDefault, Message, CallbackQuery
 
 from app.db_operations import is_user_registered, register_new_user, create_new_checker_query, check_query_url_exists, \
-    create_new_found_ad
+    create_new_found_ad, get_checker_queries_by_user, get_checker_query_by_id, update_checker_query_is_active, \
+    set_checker_query_deleted
 from app.keyboards import get_start_keyboard, get_add_new_or_edit_query_keyboard, \
-    get_add_new_query_menu_inline_keyboard
+    get_add_new_query_menu_inline_keyboard, get_edit_menu_inline_keyboard, get_query_edit_inline_keyboard
 from app.parsing import parse, IncorrectURL
 from app.utilities import get_message_text_for_existing_user, get_message_text_for_new_user, \
     transform_query_text_to_olx_url
@@ -24,6 +25,12 @@ class AddNewCheckerQueryByQueryText(StatesGroup):
     query_text = State()
 
 
+async def set_commands(bot):
+    commands = [BotCommand(command='start', description='Стартове меню'),
+                BotCommand(command='about', description='Про проект')]
+    await bot.set_my_commands(commands, BotCommandScopeDefault())
+
+
 @main_router.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
     """
@@ -38,6 +45,22 @@ async def command_start_handler(message: Message) -> None:
         await message.answer(message_text, reply_markup=get_start_keyboard())
 
 
+@main_router.message(Command('about'))
+async def command_about_handler(message: Message) -> None:
+    """
+    This handler receives messages with `/about` command
+    """
+    await message.answer(f"Проект створено для перевірки й оповіщення користувача, щодо нових Olx-оголошень, щойно "
+                         f"вони з'являються на порталі.\n"
+                         f"На разі є можливість додавати запити по введеному текстовому значенню (запит лише по цьому "
+                         f"значенню, без будь-яких додаткових фільтрів), а також запити по URL, що веде на "
+                         f"Olx-оголошення (введений URL може містити в собі вже безліч застосованих фільтрів). "
+                         f"Також є можливість активації/деактивації моніторингових запитів та їх видалення.\n"
+                         f"Автор проекту [Ковальчук Володимир](https://t.me/slengpack). Звертайтеся в разі виникнення "
+                         f"пропозицій, побажань чи конструктивних відгуків",
+                         parse_mode="Markdown")
+
+
 @main_router.callback_query(F.data == 'new_query')
 async def command_add_new_query_handler(callback: CallbackQuery) -> None:
     await callback.answer('')
@@ -45,11 +68,59 @@ async def command_add_new_query_handler(callback: CallbackQuery) -> None:
                                   reply_markup=get_add_new_query_menu_inline_keyboard())
 
 
+@main_router.callback_query(F.data == 'edit_queries')
+async def command_edit_queries_handler(callback: CallbackQuery) -> None:
+    await callback.answer('')
+    checker_queries = await get_checker_queries_by_user(callback.from_user.id)
+    await callback.message.answer(f"Оберіть моніторинг для редагування:\n"
+                                  f"✅ - активний моніторинг\n"
+                                  f"🚫 - деактивований моніторинг",
+                                  reply_markup=get_edit_menu_inline_keyboard(checker_queries))
+
+
+@main_router.callback_query(F.data.startswith('query_edit'))
+async def command_edit_queries_handler(callback: CallbackQuery) -> None:
+    query_id = callback.data.split('_')[-1]
+    checker_query = await get_checker_query_by_id(query_id)
+    await callback.answer('')
+    await callback.message.answer(f'{html.bold("Назва моніторингу:")} "{checker_query['query_name']}"',
+                                  reply_markup=get_query_edit_inline_keyboard(query_id, checker_query['is_active']))
+
+
+@main_router.callback_query(F.data.startswith('query_activate'))
+async def command_edit_queries_handler(callback: CallbackQuery) -> None:
+    query_id = callback.data.split('_')[-1]
+    checker_query = await get_checker_query_by_id(query_id)
+    is_active = True if checker_query['is_active'] == 0 else False
+    await update_checker_query_is_active(query_id, is_active)
+    await callback.answer(f'{"Активовано" if is_active else "Деактивовано"} моніторинг "{checker_query['query_name']}"')
+
+    checker_queries = await get_checker_queries_by_user(callback.from_user.id)
+    await callback.message.answer(f"Оберіть моніторинг для редагування:\n"
+                                  f"✅ - активний моніторинг\n"
+                                  f"🚫 - деактивований моніторинг",
+                                  reply_markup=get_edit_menu_inline_keyboard(checker_queries))
+
+
+@main_router.callback_query(F.data.startswith('query_delete'))
+async def command_edit_queries_handler(callback: CallbackQuery) -> None:
+    query_id = callback.data.split('_')[-1]
+    checker_query_for_delete = await get_checker_query_by_id(query_id)
+    await set_checker_query_deleted(query_id)
+    await callback.answer(f'Видалено моніторинг "{checker_query_for_delete['query_name']}"')
+
+    checker_queries = await get_checker_queries_by_user(callback.from_user.id)
+    await callback.message.answer(f"Оберіть моніторинг для редагування:\n"
+                                  f"✅ - активний моніторинг\n"
+                                  f"🚫 - деактивований моніторинг",
+                                  reply_markup=get_edit_menu_inline_keyboard(checker_queries))
+
+
 @main_router.callback_query(F.data == 'query_by_url')
 async def add_query_by_url_step1(callback: CallbackQuery, state: FSMContext):
     await callback.answer('')
     await state.set_state(AddNewCheckerQueryByURL.query_name)
-    await callback.message.answer('Введіть назву запиту:')
+    await callback.message.answer('Введіть назву запиту (ця назва буде відображатися в переліку запитів):')
 
 
 @main_router.message(AddNewCheckerQueryByURL.query_name)
@@ -63,6 +134,8 @@ async def add_query_by_url_step2(message: Message, state: FSMContext):
 async def add_query_by_url_step3(message: Message, state: FSMContext):
     await state.update_data(query_url=message.text)
     data = await state.get_data()
+    await state.clear()
+
     if not await check_query_url_exists(message.from_user.id, data["query_url"]):
         try:
             parsed_ads = parse(data["query_url"])
@@ -81,7 +154,6 @@ async def add_query_by_url_step3(message: Message, state: FSMContext):
             await message.answer(e.message)
     else:
         await message.answer(f'В переліку вже існує моніторинг з URL запиту: {html.bold(data["query_url"])}')
-    await state.clear()
 
 
 @main_router.callback_query(F.data == 'query_by_text')
@@ -95,6 +167,8 @@ async def add_query_by_text_step1(callback: CallbackQuery, state: FSMContext):
 async def add_query_by_text_step2(message: Message, state: FSMContext):
     await state.update_data(query_text=message.text)
     data = await state.get_data()
+    await state.clear()
+
     query_url = await transform_query_text_to_olx_url(data["query_text"])
     if not await check_query_url_exists(message.from_user.id, query_url):
         query_id = await create_new_checker_query(message.from_user.id, data["query_text"], query_url)
@@ -108,4 +182,3 @@ async def add_query_by_text_step2(message: Message, state: FSMContext):
                              f'URL запиту: {query_url}')
     else:
         await message.answer(f'В переліку вже існує моніторинг з URL запиту: {html.bold(query_url)}')
-    await state.clear()
