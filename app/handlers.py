@@ -9,7 +9,8 @@ from app.db_operations import is_user_registered, register_new_user, create_new_
     set_checker_query_deleted
 from app.keyboards import get_start_keyboard, get_add_new_or_edit_query_keyboard, \
     get_add_new_query_menu_inline_keyboard, get_edit_menu_inline_keyboard, get_query_edit_inline_keyboard
-from app.parsing import parse, IncorrectURL
+from app.parser_olx import parse_olx, IncorrectURL
+from app.parser_rieltor import parse_rieltor
 from app.utilities import get_message_text_for_existing_user, get_message_text_for_new_user, \
     transform_query_text_to_olx_url
 
@@ -138,18 +139,33 @@ async def add_query_by_url_step3(message: Message, state: FSMContext):
 
     if not await check_query_url_exists(message.from_user.id, data["query_url"]):
         try:
-            parsed_ads = parse(data["query_url"])
-            if parsed_ads:
-                query_id = await create_new_checker_query(message.from_user.id, data["query_name"], data["query_url"])
-                for parsed_ad in parsed_ads:
-                    await create_new_found_ad(query_id, parsed_ad['ad_url'], parsed_ad['ad_description'],
-                                              parsed_ad['ad_price'], parsed_ad['currency'])
+            if "olx.ua/" in data["query_url"]:
+                parsed_ads = parse_olx(data["query_url"])
+                if parsed_ads:
+                    query_id = await create_new_checker_query(message.from_user.id, data["query_name"], data["query_url"])
+                    for parsed_ad in parsed_ads:
+                        await create_new_found_ad(query_id, parsed_ad['ad_url'], parsed_ad['ad_description'],
+                                                  parsed_ad['ad_price'], parsed_ad['currency'])
 
-                await message.answer(f'Додано моніторинг: {html.bold(data["query_name"])}\n'
-                                     f'Знайдено {len(parsed_ads)} поточних оголошень\n'
-                                     f'URL запиту: {data["query_url"]}')
-            else:
-                await message.answer(f'Введений вами URL не містить Olx оголошень')
+                    await message.answer(f'Додано моніторинг: {html.bold(data["query_name"])}\n'
+                                         f'Знайдено {len(parsed_ads)} поточних оголошень\n'
+                                         f'URL запиту: {data["query_url"]}')
+                else:
+                    await message.answer(f'Введений вами URL не містить Olx оголошень')
+            elif "rieltor.ua/" in data["query_url"]:
+                parsed_ads = parse_rieltor(data["query_url"])
+                if parsed_ads:
+                    query_id = await create_new_checker_query(message.from_user.id, data["query_name"],
+                                                              data["query_url"])
+                    for parsed_ad in parsed_ads:
+                        await create_new_found_ad(query_id, parsed_ad['ad_url'], parsed_ad['ad_description'],
+                                                  parsed_ad['ad_price'], parsed_ad['currency'])
+
+                    await message.answer(f'Додано моніторинг: {html.bold(data["query_name"])}\n'
+                                         f'Знайдено {len(parsed_ads)} поточних оголошень\n'
+                                         f'URL запиту: {data["query_url"]}')
+                else:
+                    await message.answer(f'Введений вами URL не містить rieltor.ua оголошень')
         except IncorrectURL as e:
             await message.answer(e.message)
     else:
@@ -172,7 +188,7 @@ async def add_query_by_text_step2(message: Message, state: FSMContext):
     query_url = await transform_query_text_to_olx_url(data["query_text"])
     if not await check_query_url_exists(message.from_user.id, query_url):
         query_id = await create_new_checker_query(message.from_user.id, data["query_text"], query_url)
-        parsed_ads = parse(data["query_url"])
+        parsed_ads = parse_olx(data["query_url"])
         for parsed_ad in parsed_ads:
             await create_new_found_ad(query_id, parsed_ad['ad_url'], parsed_ad['ad_description'],
                                       parsed_ad['ad_price'], parsed_ad['currency'])

@@ -23,7 +23,7 @@ dp = Dispatcher()
 async def main() -> None:
     # And the run events dispatching
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(partial(check_new_ads, bot), "interval", minutes=2)
+    scheduler.add_job(partial(check_new_ads, bot), "interval", minutes=3)
     scheduler.start()
     await initialize_db()
     await set_commands(bot)

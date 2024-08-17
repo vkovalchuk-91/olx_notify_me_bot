@@ -15,7 +15,7 @@ class IncorrectURL(Exception):
         super().__init__(self.message)
 
 
-def parse(url):
+def parse_olx(url):
     responses_text_list = get_responses_text_list(url)
     return extract_ads(responses_text_list)
 
