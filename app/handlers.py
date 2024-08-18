@@ -140,7 +140,7 @@ async def add_query_by_url_step3(message: Message, state: FSMContext):
     if not await check_query_url_exists(message.from_user.id, data["query_url"]):
         try:
             if "olx.ua/" in data["query_url"]:
-                parsed_ads = parse_olx(data["query_url"])
+                parsed_ads = await parse_olx(data["query_url"])
                 if parsed_ads:
                     query_id = await create_new_checker_query(message.from_user.id, data["query_name"], data["query_url"])
                     for parsed_ad in parsed_ads:
@@ -153,7 +153,7 @@ async def add_query_by_url_step3(message: Message, state: FSMContext):
                 else:
                     await message.answer(f'Введений вами URL не містить Olx оголошень')
             elif "rieltor.ua/" in data["query_url"]:
-                parsed_ads = parse_rieltor(data["query_url"])
+                parsed_ads = await parse_rieltor(data["query_url"])
                 if parsed_ads:
                     query_id = await create_new_checker_query(message.from_user.id, data["query_name"],
                                                               data["query_url"])
@@ -188,7 +188,7 @@ async def add_query_by_text_step2(message: Message, state: FSMContext):
     query_url = await transform_query_text_to_olx_url(data["query_text"])
     if not await check_query_url_exists(message.from_user.id, query_url):
         query_id = await create_new_checker_query(message.from_user.id, data["query_text"], query_url)
-        parsed_ads = parse_olx(data["query_url"])
+        parsed_ads = await parse_olx(data["query_url"])
         for parsed_ad in parsed_ads:
             await create_new_found_ad(query_id, parsed_ad['ad_url'], parsed_ad['ad_description'],
                                       parsed_ad['ad_price'], parsed_ad['currency'])

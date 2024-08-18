@@ -1,8 +1,8 @@
+import asyncio
 import logging
 
-import requests
+from aiohttp import ClientSession, ClientConnectorError, InvalidURL
 from bs4 import BeautifulSoup
-from requests.exceptions import MissingSchema, ConnectionError
 
 HEADERS = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0',
            'accept': '*/*'}
@@ -15,41 +15,35 @@ class IncorrectURL(Exception):
         super().__init__(self.message)
 
 
-def parse_rieltor(url):
-    responses_text_list = get_responses_text_list(url)
+async def parse_rieltor(url):
+    responses_text_list = await get_responses_text_list(url)
     return extract_ads(responses_text_list)
 
 
-def get_responses_text_list(url):
+async def get_responses_text_list(url):
     responses_text_list = []
-    unique_next_page_urls = []
 
     current_url = url
-    while True:
-        response = get_html(current_url)
-        if response.status_code == 200:
-            forward_page_url = get_pagination_forward_page_url_if_exist(response)
+    async with ClientSession() as session:
+        while True:
+            async with session.get(current_url) as response:
+                responses_text = await response.text()
 
-            # Перевіряємо чи посилання на наступну сторінку є унікальним й до цього не було доданим в список тих, по
-            # яким вже здійснювався запит
-            if forward_page_url:
-                if forward_page_url in unique_next_page_urls:
-                    return responses_text_list
+                if response.status == 200:
+                    responses_text_list.append(responses_text)
+
+                    forward_page_url = get_pagination_forward_page_url_if_exist(responses_text)
+                    if forward_page_url:
+                        current_url = forward_page_url
+                    else:
+                        return responses_text_list
                 else:
-                    unique_next_page_urls.append(forward_page_url)
-
-            responses_text_list.append(response.text)
-            if forward_page_url:
-                current_url = forward_page_url
-            else:
-                return responses_text_list
-        else:
-            logging.info(f'Response Error on {url}')
-            return None
+                    logging.info(f'Response Error on {url}')
+                    return None
 
 
-def get_pagination_forward_page_url_if_exist(response):
-    soup = BeautifulSoup(response.text, 'html.parser')
+def get_pagination_forward_page_url_if_exist(responses_text):
+    soup = BeautifulSoup(responses_text, 'html.parser')
     try:
         pagination_elements = soup.find('ul', class_='pagination_custom')
         if pagination_elements:
@@ -67,11 +61,11 @@ def get_pagination_forward_page_url_if_exist(response):
         return None
 
 
-def get_html(url, params=None):
+async def get_html(session: ClientSession, url, params=None):
     try:
-        req = requests.get(url, headers=HEADERS, params=params)
-        return req
-    except (ConnectionError, MissingSchema):
+        async with session.get(url, headers=HEADERS, params=params) as response:
+            return response
+    except (ClientConnectorError, InvalidURL):
         raise IncorrectURL()
 
 
@@ -133,17 +127,14 @@ def split_price(undivided_price):
     return price, currency
 
 
-# ads = parse('https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&price_max=10000&radius=20&sort=bycreated#11.69/50.4692/30.4294')
-# print(len(ads))
-# for ad in ads:
-#     print(ad)
+async def test():
+    url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&price_max=10000&radius=20&sort=bycreated#11.69/50.4692/30.4294'
+    # url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&price_max=6000&radius=20&sort=bycreated#10.22/50.4654/30.4495'
+    # url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&radius=20&sort=bycreated'
+    ads = await parse_rieltor(url)
+    print(len(ads))
+    # for ad in ads:
+    #     print(ad['ad_url'])
 
-ads = parse_rieltor('https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&price_max=6000&radius=20&sort=bycreated#10.22/50.4654/30.4495')
-print(len(ads))
-for ad in ads:
-    print(ad)
-
-# ads = parse('https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&radius=20&sort=bycreated')
-# print(len(ads))
-# for ad in ads:
-#     print(ad)
+if __name__ == '__main__':
+    asyncio.run(test())

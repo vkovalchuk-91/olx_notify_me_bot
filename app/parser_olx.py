@@ -1,8 +1,8 @@
+import asyncio
 import logging
 
-import requests
+from aiohttp import ClientSession, ClientConnectorError, InvalidURL
 from bs4 import BeautifulSoup
-from requests.exceptions import MissingSchema, ConnectionError
 
 HEADERS = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0',
            'accept': '*/*'}
@@ -15,50 +15,47 @@ class IncorrectURL(Exception):
         super().__init__(self.message)
 
 
-def parse_olx(url):
-    responses_text_list = get_responses_text_list(url)
+async def parse_olx(url):
+    responses_text_list = await get_responses_text_list(url)
     return extract_ads(responses_text_list)
 
 
-def get_responses_text_list(url):
+async def get_responses_text_list(url):
     responses_text_list = []
-    unique_next_page_urls = []
 
     current_url = url
-    while True:
-        response = get_html(current_url)
-        if response.status_code == 200:
-            forward_page_url = get_pagination_forward_page_url_if_exist(response)
+    async with ClientSession() as session:
+        while True:
+            async with session.get(current_url) as response:
+                responses_text = await response.text()
 
-            # Перевіряємо чи посилання на наступну сторінку є унікальним й до цього не було доданим в список тих, по
-            # яким вже здійснювався запит
-            if forward_page_url:
-                if forward_page_url in unique_next_page_urls:
-                    return responses_text_list
+                if response.status == 200:
+                    responses_text_list.append(responses_text)
+
+                    forward_page_url = get_pagination_forward_page_url_if_exist(responses_text)
+                    if forward_page_url:
+                        current_url = HOST + forward_page_url
+                    else:
+                        return responses_text_list
                 else:
-                    unique_next_page_urls.append(forward_page_url)
-
-            responses_text_list.append(response.text)
-            if forward_page_url:
-                current_url = HOST + forward_page_url
-            else:
-                return responses_text_list
-        else:
-            logging.info(f'Response Error on {url}')
-            return None
+                    logging.info(f'Response Error on {url}')
+                    return None
 
 
-def get_html(url, params=None):
+async def get_html(session: ClientSession, url, params=None):
     try:
-        req = requests.get(url, headers=HEADERS, params=params)
-        return req
-    except (ConnectionError, MissingSchema):
+        async with session.get(url, headers=HEADERS, params=params) as response:
+            return response
+    except (ClientConnectorError, InvalidURL):
         raise IncorrectURL()
 
 
-def get_pagination_forward_page_url_if_exist(response):
-    soup = BeautifulSoup(response.text, 'html.parser')
+def get_pagination_forward_page_url_if_exist(response_text):
+    soup = BeautifulSoup(response_text, 'html.parser')
     try:
+        listing_grid = soup.find_all('div', {'data-testid': 'listing-grid'})
+        if len(listing_grid) > 1:  # Відсіюємо рекламні оголошення, якщо блоків більше 1
+            return None
         next_page_url = soup.find('a', {'data-cy': 'pagination-forward'})['href']
         return next_page_url
     except TypeError:
@@ -72,6 +69,7 @@ def extract_ads(responses_text_list):
     if responses_text_list:
         for responses_text in responses_text_list:
             soup = BeautifulSoup(responses_text, 'html.parser')
+
             # Знайти перший елемент з data-testid="listing-grid"
             listing_grid = soup.find('div', {'data-testid': 'listing-grid'})
 
@@ -124,8 +122,14 @@ def split_price(undivided_price):
     return price, currency
 
 
-# for ad in parse('https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/q-%D0%9E%D0%B1%D0%BE%D0%BB%D0%BE%D0%BD%D1%8C/?currency=UAH&search%5Bfilter_float_price:to%5D=14000'):
-#     print(ad['ad_url'])
+async def test():
+    # url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=10000&currency=UAH'
+    # url = 'https://www.olx.ua/uk/list/q-%D0%BF%D1%96%D0%B4%D0%BD%D0%BE%D0%B6%D0%BA%D0%B0-Cube/'
+    url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?currency=UAH&search%5Bdistrict_id%5D=13'
+    ads = await parse_olx(url)
+    print(len(ads))
+    # for ad in ads:
+    #     print(ad['ad_url'])
 
-# for ad in parse('https://www.olx.ua/uk/list/q-%D1%8F-%D0%B1%D0%B0%D1%87%D1%83-%D0%B2%D0%B0%D1%81-%D1%86%D1%96%D0%BA%D0%B0%D0%B2%D0%B8%D1%82%D1%8C-%D0%BF%D1%96%D1%82%D1%8C%D0%BC%D0%B0/?search%5Bfilter_float_price:to%5D=250'):
-#     print(ad['ad_url'])
+if __name__ == '__main__':
+    asyncio.run(test())

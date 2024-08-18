@@ -7,6 +7,7 @@ from aiogram.enums import ParseMode
 from app.db_operations import get_all_active_checker_queries, get_all_found_ads, create_new_found_ad, \
     update_found_ad_is_active
 from app.parser_olx import parse_olx
+from app.parser_rieltor import parse_rieltor
 
 
 async def check_new_ads(bot):
@@ -20,7 +21,11 @@ async def check_new_ads(bot):
         saved_in_db_deactivated_ads = {ad['ad_url']: ad['ad_id'] for ad in saved_in_db_ads if ad['is_active'] == 0}
         saved_in_db_deactivated_urls = list(saved_in_db_deactivated_ads.keys())
 
-        parsed_ads = parse_olx(query['query_url'])
+        parsed_ads = []
+        if "olx.ua/" in query['query_url']:
+            parsed_ads = await parse_olx(query['query_url'])
+        elif "rieltor.ua/" in query['query_url']:
+            parsed_ads = await parse_rieltor(query['query_url'])
         parsed_ads_urls = [ad['ad_url'] for ad in parsed_ads]
 
         for parsed_ad in parsed_ads:
