@@ -127,14 +127,14 @@ def split_price(undivided_price):
     return price, currency
 
 
-async def test():
-    url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&price_max=10000&radius=20&sort=bycreated#11.69/50.4692/30.4294'
-    # url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&price_max=6000&radius=20&sort=bycreated#10.22/50.4654/30.4495'
-    # url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&radius=20&sort=bycreated'
-    ads = await parse_rieltor(url)
-    print(len(ads))
-    # for ad in ads:
-    #     print(ad['ad_url'])
-
-if __name__ == '__main__':
-    asyncio.run(test())
+# async def test():
+#     url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&price_max=10000&radius=20&sort=bycreated#11.69/50.4692/30.4294'
+#     # url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&price_max=6000&radius=20&sort=bycreated#10.22/50.4654/30.4495'
+#     # url = 'https://rieltor.ua/flats-rent/1-room/?district%5B0%5D=76&district%5B1%5D=82&district%5B2%5D=78&district%5B3%5D=86&district%5B4%5D=80&district%5B5%5D=79&radius=20&sort=bycreated'
+#     ads = await parse_rieltor(url)
+#     print(len(ads))
+#     # for ad in ads:
+#     #     print(ad['ad_url'])
+#
+# if __name__ == '__main__':
+#     asyncio.run(test())

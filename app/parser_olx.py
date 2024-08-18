@@ -122,14 +122,14 @@ def split_price(undivided_price):
     return price, currency
 
 
-async def test():
-    # url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=10000&currency=UAH'
-    # url = 'https://www.olx.ua/uk/list/q-%D0%BF%D1%96%D0%B4%D0%BD%D0%BE%D0%B6%D0%BA%D0%B0-Cube/'
-    url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?currency=UAH&search%5Bdistrict_id%5D=13'
-    ads = await parse_olx(url)
-    print(len(ads))
-    # for ad in ads:
-    #     print(ad['ad_url'])
-
-if __name__ == '__main__':
-    asyncio.run(test())
+# async def test():
+#     # url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=10000&currency=UAH'
+#     # url = 'https://www.olx.ua/uk/list/q-%D0%BF%D1%96%D0%B4%D0%BD%D0%BE%D0%B6%D0%BA%D0%B0-Cube/'
+#     url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?currency=UAH&search%5Bdistrict_id%5D=13'
+#     ads = await parse_olx(url)
+#     print(len(ads))
+#     # for ad in ads:
+#     #     print(ad['ad_url'])
+#
+# if __name__ == '__main__':
+#     asyncio.run(test())
