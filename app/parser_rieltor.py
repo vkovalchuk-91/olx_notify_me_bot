@@ -61,14 +61,6 @@ def get_pagination_forward_page_url_if_exist(responses_text):
         return None
 
 
-async def get_html(session: ClientSession, url, params=None):
-    try:
-        async with session.get(url, headers=HEADERS, params=params) as response:
-            return response
-    except (ClientConnectorError, InvalidURL):
-        raise IncorrectURL()
-
-
 def extract_ads(responses_text_list):
     unique_ads = []
     unique_urls = []
