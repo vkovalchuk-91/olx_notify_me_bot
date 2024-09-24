@@ -6,11 +6,12 @@ from aiogram.enums import ParseMode
 
 from app.db_operations import get_all_active_checker_queries, get_all_found_ads, create_new_found_ad, \
     update_found_ad_is_active
-from app.parser_olx import parse_olx
+from app import parser_olx
+from app import parser_olx_sync
 from app.parser_rieltor import parse_rieltor
 
 
-async def check_new_ads(bot):
+async def check_new_ads(bot, use_aiohttp):
     parsing_start_time = datetime.now()
     active_checker_queries = await get_all_active_checker_queries()
     for query in active_checker_queries:
@@ -23,13 +24,18 @@ async def check_new_ads(bot):
 
         parsed_ads = []
         if "olx.ua/" in query['query_url']:
-            parsed_ads = await parse_olx(query['query_url'])
+            if use_aiohttp:
+                parsed_ads = await parser_olx.parse_olx(query['query_url'])
+            else:
+                parsed_ads = parser_olx_sync.parse_olx(query['query_url'])
         elif "rieltor.ua/" in query['query_url']:
             parsed_ads = await parse_rieltor(query['query_url'])
         parsed_ads_urls = [ad['ad_url'] for ad in parsed_ads]
 
         for parsed_ad in parsed_ads:
             if parsed_ad['ad_url'] not in saved_in_db_ads_urls:  # Відправляємо повідомлення при появі нових оголошень
+                if "olx.ua/uk" in query['query_url'] and "olx.ua/d/obyavlenie" in parsed_ad['ad_url']:
+                    break
                 await create_new_found_ad(query['query_id'], parsed_ad['ad_url'], parsed_ad['ad_description'],
                                           parsed_ad['ad_price'], parsed_ad['currency'])
                 logging.info(f"New ad sent to '{query['user_telegram_id']}': {parsed_ad['ad_url']}")

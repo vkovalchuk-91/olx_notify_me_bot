@@ -1,9 +1,12 @@
-import asyncio
-import logging
-
-from aiohttp import ClientSession
+import requests
 from bs4 import BeautifulSoup
 
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+    'Accept-Encoding': 'gzip, deflate',
+    'Accept': '*/*',
+    'Connection': 'keep-alive'
+}
 HOST = 'http://www.olx.ua'
 
 
@@ -13,31 +16,30 @@ class IncorrectURL(Exception):
         super().__init__(self.message)
 
 
-async def parse_olx(url):
-    responses_text_list = await get_responses_text_list(url)
+def parse_olx(url):
+    responses_text_list = get_responses_text_list(url)
     return extract_ads(responses_text_list)
 
 
-async def get_responses_text_list(url):
+def get_responses_text_list(url):
     responses_text_list = []
 
     current_url = url
-    async with ClientSession() as session:
-        while True:
-            async with session.get(current_url) as response:
-                responses_text = await response.text()
+    while True:
+        response = requests.get(current_url, headers=HEADERS)
+        responses_text = response.text
 
-                if response.status == 200:
-                    responses_text_list.append(responses_text)
+        if response.status_code == 200:
+            responses_text_list.append(responses_text)
 
-                    forward_page_url = get_pagination_forward_page_url_if_exist(responses_text)
-                    if forward_page_url:
-                        current_url = HOST + forward_page_url
-                    else:
-                        return responses_text_list
-                else:
-                    logging.info(f'Response Error on {url}')
-                    return None
+            forward_page_url = get_pagination_forward_page_url_if_exist(responses_text)
+            if forward_page_url:
+                current_url = HOST + forward_page_url
+            else:
+                return responses_text_list
+        else:
+            print(f'Response Error on {url}')
+            return None
 
 
 def get_pagination_forward_page_url_if_exist(response_text):
@@ -114,14 +116,13 @@ def split_price(undivided_price):
     return price, currency
 
 
-# async def test():
-#     # url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=10000&currency=UAH'
-#     # url = 'https://www.olx.ua/uk/list/q-%D0%BF%D1%96%D0%B4%D0%BD%D0%BE%D0%B6%D0%BA%D0%B0-Cube/'
+# def test():
 #     url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?currency=UAH&search%5Bdistrict_id%5D=13'
-#     ads = await parse_olx(url)
+#     ads = parse_olx(url)
 #     print(len(ads))
 #     # for ad in ads:
 #     #     print(ad['ad_url'])
+# #
 #
 # if __name__ == '__main__':
-#     asyncio.run(test())
+#     test()
