@@ -94,7 +94,10 @@ def extract_ads(responses_text_list):
                         region_details = region_tag.find_all('a', {'data-analytics-event': 'card-click-region'})
                         address_tag = card.find('div', class_='catalog-card-address')
                         city = region_details[0].text.strip()
-                        district = region_details[1].text.strip()
+                        if len(region_details) == 2:
+                            district = region_details[1].text.strip()
+                        else:
+                            district = ""
                         address = address_tag.text.strip()
                         ad_info['ad_description'] = f'{city}, {district}, {address}'
 
