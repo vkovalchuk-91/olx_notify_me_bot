@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import aiosqlite
 from datetime import datetime
 from aiogram.types import User
 
-DATABASE_PATH = "olx_notify.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATABASE_PATH = BASE_DIR / "olx_notify.db"
 
 
 # Connect to SQLite database (or create it if it doesn't exist)
