@@ -11,12 +11,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.check_new_ads_service import check_new_ads
 from app.db_operations import initialize_db
-from app.handlers import main_router, set_commands
+from app.handlers import main_router, set_commands, USE_AIOHTTP
 
 # Bot token can be obtained via https://t.me/BotFather
 TOKEN = "7303853478:AAGfhzzyiBWesLXG1mEanMucQJwECUBoxRk"
-
-USE_AIOHTTP = False
 
 # All handlers should be attached to the Router (or Dispatcher)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
