@@ -75,7 +75,7 @@ def extract_ads(responses_text_list):
                     ad_card_title = link.find('div', {'data-cy': 'ad-card-title'})
                     if ad_card_title:
                         # Знайти елемент 'a' з класом 'css-z3gu2d' всередині ad_card_title
-                        a_tag = ad_card_title.find('a', class_='css-z3gu2d')
+                        a_tag = ad_card_title.find('a', class_='css-qo0cxu')
                         if a_tag:
                             # Знайти url оголошення
                             url = a_tag['href']
@@ -85,7 +85,7 @@ def extract_ads(responses_text_list):
                                 ad_info['ad_url'] = HOST + url
 
                                 # Знайти текст заголовка оголошення
-                                ad_description = a_tag.find('h6', class_='css-1wxaaza').text
+                                ad_description = a_tag.find('h4', class_='css-1s3qyje').text
                                 ad_info['ad_description'] = ad_description
 
                                 # Знайти елемент 'p' з атрибутом 'data-testid="ad-price"' всередині ad_card_title
@@ -116,13 +116,13 @@ def split_price(undivided_price):
     return price, currency
 
 
-# def test():
-#     url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?currency=UAH&search%5Bdistrict_id%5D=13'
-#     ads = parse_olx(url)
-#     print(len(ads))
-#     # for ad in ads:
-#     #     print(ad['ad_url'])
-# #
-#
-# if __name__ == '__main__':
-#     test()
+def test():
+    url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=8000&currency=UAH'
+    ads = parse_olx(url)
+    print(len(ads))
+    for ad in ads:
+        print(ad['ad_url'])
+
+
+if __name__ == '__main__':
+    test()
