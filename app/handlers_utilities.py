@@ -1,14 +1,18 @@
 import re
 
+import injector
 from aiogram import html
 from aiogram.types import User
 
-from app.db_operations import count_active_checker_queries, count_inactive_checker_queries
+from app.db.db_interface import DatabaseInterface
+from app.injector_config import BotModule
+
+db = injector.Injector([BotModule]).get(DatabaseInterface)
 
 
 async def get_message_text_for_existing_user(user: User):
-    active_checker_queries = await count_active_checker_queries(user.id)
-    inactive_checker_queries = await count_inactive_checker_queries(user.id)
+    active_checker_queries = await db.count_active_checker_queries(user.id)
+    inactive_checker_queries = await db.count_inactive_checker_queries(user.id)
     queries_count_string = f"Кількість активних моніторингів {active_checker_queries}"
     if inactive_checker_queries > 0:
         queries_count_string += f" (+{inactive_checker_queries} - деактивовано)"

@@ -105,13 +105,14 @@ def split_price(undivided_price):
     # Знаходимо індекс останнього пробілу
     last_space_index = undivided_price.rfind(' ')
 
-    # Якщо пробіл не знайдено, повертаємо весь текст як першу частину, а другу частину залишаємо порожньою
-    if last_space_index == -1:
-        return undivided_price, ''
-
-    # Розбиваємо текст на дві частини
-    price = undivided_price[:last_space_index]
-    currency = undivided_price[last_space_index + 1:]
+    # Якщо пробіл не знайдено, повертаємо весь текст як валюту, а ціну залишаємо 0,
+    # якщо ні розбиваємо текст на дві частини
+    if last_space_index != -1:
+        price = undivided_price[:last_space_index].replace(" ", "")
+        currency = undivided_price[last_space_index + 1:]
+    else:
+        price = 0
+        currency = undivided_price
 
     return price, currency
 
