@@ -1,8 +1,11 @@
 import asyncio
 import logging
+import re
 
 import httpx
+import requests
 from bs4 import BeautifulSoup
+
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
     'Accept-Encoding': 'gzip, deflate',
@@ -12,38 +15,64 @@ HEADERS = {
 HOST = 'https://www.olx.ua'
 
 
-class IncorrectURL(Exception):
-    def __init__(self, message="Введений вами URL є некоректним"):
-        self.message = message
-        super().__init__(self.message)
+async def parse_latest_ads(url):
+    latest_ads_url = await get_latest_ads_url(url)
+    response_text_list = await get_one_page_response_text_list(latest_ads_url)
+    return extract_ads(response_text_list)
 
 
-async def parse_olx(url):
-    responses_text_list = await get_responses_text_list(url)
+async def get_latest_ads_url(url):
+    latest_ads_query_text = 'search%5Border%5D=created_at%3Adesc'
+
+    if 'search%5Border%5D=' in url:
+        # Замінюємо текст, що відповідає шаблону, на нове значення
+        # Шаблон для пошуку 'search%5Border%5D=' та тексту після нього до &
+        pattern = r"search%5Border%5D=[^&]*"
+        latest_ads_url = re.sub(pattern, latest_ads_query_text, url)
+    elif '?' in url:
+        # Якщо '?' є, додаємо значення після нього
+        parts = url.split('?', 1)
+        latest_ads_url = f"{parts[0]}?{latest_ads_query_text}&{parts[1]}"
+    else:
+        # Якщо '?' немає, додаємо значення в кінці з '?'
+        latest_ads_url = f"{url}?{latest_ads_query_text}"
+    return latest_ads_url
+
+
+async def get_one_page_response_text_list(url):
+    async with httpx.AsyncClient(headers=HEADERS) as client:
+        response = await client.get(url)
+        if response.status_code == 200:
+            return [response.text]
+        else:
+            logging.info(f'Response Error on {url}')
+            return None
+
+
+def parse_all_ads(url):
+    responses_text_list = get_responses_text_list(url)
     return extract_ads(responses_text_list)
 
 
-async def get_responses_text_list(url):
+def get_responses_text_list(url):
     responses_text_list = []
 
     current_url = url
-    async with httpx.AsyncClient(headers=HEADERS) as client:
-        while True:
+    while True:
+        response = requests.get(current_url, headers=HEADERS)
+        responses_text = response.text
 
-            response = await client.get(current_url)
+        if response.status_code == 200:
+            responses_text_list.append(responses_text)
 
-            if response.status_code == 200:
-                responses_text = response.text
-                responses_text_list.append(responses_text)
-
-                forward_page_url = get_pagination_forward_page_url_if_exist(responses_text)
-                if forward_page_url:
-                    current_url = HOST + forward_page_url
-                else:
-                    return responses_text_list
+            forward_page_url = get_pagination_forward_page_url_if_exist(responses_text)
+            if forward_page_url:
+                current_url = HOST + forward_page_url
             else:
-                logging.info(f'Response Error on {url}')
-                return None
+                return responses_text_list
+        else:
+            logging.info(f'Response Error on {url}')
+            return None
 
 
 def get_pagination_forward_page_url_if_exist(response_text):
@@ -121,19 +150,21 @@ def split_price(undivided_price):
     return price, currency
 
 
-# async def test():
-#     async with httpx.AsyncClient(headers=HEADERS) as client:
-#         response = await client.get("https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?currency=UAH&page=27&search%5Bdistrict_id%5D=13&search%5Bfilter_float_price%3Ato%5D=30000")
-#         print(response.status_code)
-#         # print(response.text)
+# def test():
+#     url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=8000&currency=UAH'
+#     ads = parse_olx(url)
+#     print(len(ads))
+#     for ad in ads:
+#         print(ad['ad_url'])
 #
-#         if response.status_code == 200:
-#             print(1)
-#         else:
-#             logging.info(f'Response Error on ')
-#     # url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=10000&currency=UAH'
-#     # ads = await parse_olx(url)
-#     # print(len(ads))
+#
+# if __name__ == '__main__':
+#     test()
+
+# async def test():
+#     url = 'https://www.olx.ua/uk/list/q-%D1%84%D1%83%D1%82%D0%B7%D0%B0%D0%BB%D0%BA%D0%B8-43/?search%5Border%5D=filter_float_price:asc&search%5Bfilter_float_price:to%5D=1500'
+#     ads = await parse_latest_ads(url)
+#     print(len(ads))
 #     # for ad in ads:
 #     #     print(ad['ad_url'])
 #

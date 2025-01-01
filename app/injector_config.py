@@ -8,7 +8,7 @@ from app.db.db_postgres_impl import PostgresDatabase
 from app.db.db_sqlite_impl import SQLiteDatabase
 
 load_dotenv()
-USE_LOCAL_DB = os.getenv("USE_LOCAL_DB", "false").lower() in ["True", "true", "1", "t", "y", "yes"]
+USE_LOCAL_DB = os.getenv("USE_LOCAL_DB", "false").lower() in ["true", "1", "t", "y", "yes"]
 LOCAL_DB_NAME = os.getenv("LOCAL_DB_NAME")
 DB_CONFIG = {
     'user': os.getenv("DB_USER"),

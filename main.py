@@ -17,7 +17,7 @@ from app.handlers import main_router, set_commands
 # Loading variables from the .env file
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")  # Bot token can be obtained via https://t.me/BotFather
-USE_AIOHTTP = os.getenv("USE_AIOHTTP", "false").lower() in ["True", "true", "1", "t", "y", "yes"]
+USE_ASYNC_LATEST_ADS_MODE = os.getenv("USE_ASYNC_LATEST_ADS_MODE", "false").lower() in ["true", "1", "t", "y", "yes"]
 REQUEST_INTERVAL_MINUTES = int(os.getenv("REQUEST_INTERVAL_MINUTES"))
 INITIAL_REQUEST_DELAY_SECONDS = int(os.getenv("INITIAL_REQUEST_DELAY_SECONDS"))
 
@@ -30,9 +30,9 @@ dispatcher = Dispatcher()
 async def main() -> None:
     # And the run events dispatching
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(partial(check_new_ads, bot, USE_AIOHTTP),
+    scheduler.add_job(partial(check_new_ads, bot, USE_ASYNC_LATEST_ADS_MODE),
                       "interval", minutes=REQUEST_INTERVAL_MINUTES)
-    scheduler.add_job(partial(check_new_ads, bot, USE_AIOHTTP),
+    scheduler.add_job(partial(check_new_ads, bot, False),
                       "date", run_date=datetime.now() + timedelta(seconds=INITIAL_REQUEST_DELAY_SECONDS))
     scheduler.start()
     await set_commands(bot)

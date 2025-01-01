@@ -6,14 +6,14 @@ from aiogram import html
 from aiogram.enums import ParseMode
 
 from app.db.db_interface import DatabaseInterface
-from app.parsers import parser_olx_sync, parser_olx_async
+from app.parsers import parser_olx
 from app.injector_config import BotModule
 from app.parsers.parser_rieltor import parse_rieltor
 
 db = injector.Injector([BotModule]).get(DatabaseInterface)
 
 
-async def check_new_ads(bot, use_aiohttp):
+async def check_new_ads(bot, use_async_latest_ads_mode):
     parsing_start_time = datetime.now()
     active_checker_queries = await db.get_all_active_checker_queries()
     for query in active_checker_queries:
@@ -26,10 +26,10 @@ async def check_new_ads(bot, use_aiohttp):
 
         parsed_ads = []
         if "olx.ua/" in query['query_url']:
-            if use_aiohttp:
-                parsed_ads = await parser_olx_async.parse_olx(query['query_url'])
+            if use_async_latest_ads_mode:
+                parsed_ads = await parser_olx.parse_latest_ads(query['query_url'])
             else:
-                parsed_ads = parser_olx_sync.parse_olx(query['query_url'])
+                parsed_ads = parser_olx.parse_all_ads(query['query_url'])
         elif "rieltor.ua/" in query['query_url']:
             parsed_ads = await parse_rieltor(query['query_url'])
         parsed_ads_urls = [ad['ad_url'] for ad in parsed_ads]

@@ -1,18 +1,12 @@
 import asyncio
 import logging
 
-from aiohttp import ClientSession, ClientConnectorError, InvalidURL
+from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 
 HEADERS = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0',
            'accept': '*/*'}
 HOST = 'https://rieltor.ua'
-
-
-class IncorrectURL(Exception):
-    def __init__(self, message="Введений вами URL є некоректним"):
-        self.message = message
-        super().__init__(self.message)
 
 
 async def parse_rieltor(url):

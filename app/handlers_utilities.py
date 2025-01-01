@@ -10,6 +10,12 @@ from app.injector_config import BotModule
 db = injector.Injector([BotModule]).get(DatabaseInterface)
 
 
+class IncorrectURL(Exception):
+    def __init__(self, message="Введений вами URL є некоректним"):
+        self.message = message
+        super().__init__(self.message)
+
+
 async def get_message_text_for_existing_user(user: User):
     active_checker_queries = await db.count_active_checker_queries(user.id)
     inactive_checker_queries = await db.count_inactive_checker_queries(user.id)
