@@ -1,10 +1,15 @@
 import asyncio
 import logging
 
-from aiohttp import ClientSession
+import httpx
 from bs4 import BeautifulSoup
-
-HOST = 'http://www.olx.ua'
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+    'Accept-Encoding': 'gzip, deflate',
+    'Accept': '*/*',
+    'Connection': 'keep-alive'
+}
+HOST = 'https://www.olx.ua'
 
 
 class IncorrectURL(Exception):
@@ -22,22 +27,23 @@ async def get_responses_text_list(url):
     responses_text_list = []
 
     current_url = url
-    async with ClientSession() as session:
+    async with httpx.AsyncClient(headers=HEADERS) as client:
         while True:
-            async with session.get(current_url) as response:
-                responses_text = await response.text()
 
-                if response.status == 200:
-                    responses_text_list.append(responses_text)
+            response = await client.get(current_url)
 
-                    forward_page_url = get_pagination_forward_page_url_if_exist(responses_text)
-                    if forward_page_url:
-                        current_url = HOST + forward_page_url
-                    else:
-                        return responses_text_list
+            if response.status_code == 200:
+                responses_text = response.text
+                responses_text_list.append(responses_text)
+
+                forward_page_url = get_pagination_forward_page_url_if_exist(responses_text)
+                if forward_page_url:
+                    current_url = HOST + forward_page_url
                 else:
-                    logging.info(f'Response Error on {url}')
-                    return None
+                    return responses_text_list
+            else:
+                logging.info(f'Response Error on {url}')
+                return None
 
 
 def get_pagination_forward_page_url_if_exist(response_text):
@@ -73,7 +79,7 @@ def extract_ads(responses_text_list):
                     ad_card_title = link.find('div', {'data-cy': 'ad-card-title'})
                     if ad_card_title:
                         # Знайти елемент 'a' з класом 'css-z3gu2d' всередині ad_card_title
-                        a_tag = ad_card_title.find('a', class_='css-z3gu2d')
+                        a_tag = ad_card_title.find('a', class_='css-qo0cxu')
                         if a_tag:
                             # Знайти url оголошення
                             url = a_tag['href']
@@ -83,7 +89,7 @@ def extract_ads(responses_text_list):
                                 ad_info['ad_url'] = HOST + url
 
                                 # Знайти текст заголовка оголошення
-                                ad_description = a_tag.find('h6', class_='css-1wxaaza').text
+                                ad_description = a_tag.find('h4', class_='css-1s3qyje').text
                                 ad_info['ad_description'] = ad_description
 
                                 # Знайти елемент 'p' з атрибутом 'data-testid="ad-price"' всередині ad_card_title
@@ -103,23 +109,31 @@ def split_price(undivided_price):
     # Знаходимо індекс останнього пробілу
     last_space_index = undivided_price.rfind(' ')
 
-    # Якщо пробіл не знайдено, повертаємо весь текст як першу частину, а другу частину залишаємо порожньою
-    if last_space_index == -1:
-        return undivided_price, ''
-
-    # Розбиваємо текст на дві частини
-    price = undivided_price[:last_space_index]
-    currency = undivided_price[last_space_index + 1:]
+    # Якщо пробіл не знайдено, повертаємо весь текст як валюту, а ціну залишаємо 0,
+    # якщо ні розбиваємо текст на дві частини
+    if last_space_index != -1:
+        price = undivided_price[:last_space_index].replace(" ", "")
+        currency = undivided_price[last_space_index + 1:]
+    else:
+        price = 0
+        currency = undivided_price
 
     return price, currency
 
 
 # async def test():
+#     async with httpx.AsyncClient(headers=HEADERS) as client:
+#         response = await client.get("https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?currency=UAH&page=27&search%5Bdistrict_id%5D=13&search%5Bfilter_float_price%3Ato%5D=30000")
+#         print(response.status_code)
+#         # print(response.text)
+#
+#         if response.status_code == 200:
+#             print(1)
+#         else:
+#             logging.info(f'Response Error on ')
 #     # url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=10000&currency=UAH'
-#     # url = 'https://www.olx.ua/uk/list/q-%D0%BF%D1%96%D0%B4%D0%BD%D0%BE%D0%B6%D0%BA%D0%B0-Cube/'
-#     url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?currency=UAH&search%5Bdistrict_id%5D=13'
-#     ads = await parse_olx(url)
-#     print(len(ads))
+#     # ads = await parse_olx(url)
+#     # print(len(ads))
 #     # for ad in ads:
 #     #     print(ad['ad_url'])
 #

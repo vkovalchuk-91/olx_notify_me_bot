@@ -42,4 +42,4 @@ async def transform_query_text_to_olx_url(text):
     cleaned_text = cleaned_text.replace('$', '%24')
     cleaned_text = cleaned_text.replace('&', '%26')
     cleaned_text = cleaned_text.replace('@', '%40')
-    return url_prefix + cleaned_text
+    return url_prefix + cleaned_text + '/'

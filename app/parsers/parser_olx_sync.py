@@ -7,7 +7,7 @@ HEADERS = {
     'Accept': '*/*',
     'Connection': 'keep-alive'
 }
-HOST = 'http://www.olx.ua'
+HOST = 'https://www.olx.ua'
 
 
 class IncorrectURL(Exception):
@@ -117,13 +117,13 @@ def split_price(undivided_price):
     return price, currency
 
 
-def test():
-    url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=8000&currency=UAH'
-    ads = parse_olx(url)
-    print(len(ads))
-    for ad in ads:
-        print(ad['ad_url'])
-
-
-if __name__ == '__main__':
-    test()
+# def test():
+#     url = 'https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/kiev/?search%5Bdistrict_id%5D=13&search%5Bfilter_float_price:to%5D=8000&currency=UAH'
+#     ads = parse_olx(url)
+#     print(len(ads))
+#     for ad in ads:
+#         print(ad['ad_url'])
+#
+#
+# if __name__ == '__main__':
+#     test()

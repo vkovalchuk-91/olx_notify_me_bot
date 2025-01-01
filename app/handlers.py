@@ -8,12 +8,12 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import BotCommand, BotCommandScopeDefault, Message, CallbackQuery
 from dotenv import load_dotenv
 
-from app.parsers import parser_olx_sync, parser_olx
+from app.parsers import parser_olx_sync, parser_olx_async
 from app.db.db_interface import DatabaseInterface
 from app.injector_config import BotModule
 from app.keyboards import get_start_keyboard, get_add_new_or_edit_query_keyboard, \
     get_add_new_query_menu_inline_keyboard, get_edit_menu_inline_keyboard, get_query_edit_inline_keyboard
-from app.parsers.parser_olx import IncorrectURL
+from app.parsers.parser_olx_async import IncorrectURL
 from app.parsers.parser_rieltor import parse_rieltor
 from app.handlers_utilities import get_message_text_for_existing_user, get_message_text_for_new_user, \
     transform_query_text_to_olx_url
@@ -152,7 +152,7 @@ async def add_query_by_url_step3(message: Message, state: FSMContext):
         try:
             if "olx.ua/" in data["query_url"]:
                 if USE_AIOHTTP:
-                    parsed_ads = await parser_olx.parse_olx(data["query_url"])
+                    parsed_ads = await parser_olx_async.parse_olx(data["query_url"])
                 else:
                     parsed_ads = parser_olx_sync.parse_olx(data["query_url"])
                 if parsed_ads:
@@ -203,7 +203,7 @@ async def add_query_by_text_step2(message: Message, state: FSMContext):
     if not await db.check_query_url_exists(message.from_user.id, query_url):
         query_id = await db.create_new_checker_query(message.from_user.id, data["query_text"], query_url)
         if USE_AIOHTTP:
-            parsed_ads = await parser_olx.parse_olx(query_url)
+            parsed_ads = await parser_olx_async.parse_olx(query_url)
         else:
             parsed_ads = parser_olx_sync.parse_olx(query_url)
         for parsed_ad in parsed_ads:
