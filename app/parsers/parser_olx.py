@@ -59,6 +59,7 @@ def get_responses_text_list(url):
 
     current_url = url
     while True:
+        logging.info(f'Started processing {current_url}')
         response = requests.get(current_url, headers=HEADERS)
         responses_text = response.text
 
@@ -71,7 +72,7 @@ def get_responses_text_list(url):
             else:
                 return responses_text_list
         else:
-            logging.info(f'Response Error on {url}')
+            logging.info(f'Response Error on {current_url}')
             return None
 
 
