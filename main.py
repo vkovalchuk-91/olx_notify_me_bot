@@ -11,13 +11,12 @@ from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from dotenv import load_dotenv
 
-from app.check_new_ads_service import check_new_ads
+from app.check_new_ads_service import check_new_ads_and_measure_spent_time
 from app.handlers import main_router, set_commands
 
 # Loading variables from the .env file
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")  # Bot token can be obtained via https://t.me/BotFather
-USE_ASYNC_LATEST_ADS_MODE = os.getenv("USE_ASYNC_LATEST_ADS_MODE", "false").lower() in ["true", "1", "t", "y", "yes"]
 REQUEST_INTERVAL_MINUTES = int(os.getenv("REQUEST_INTERVAL_MINUTES"))
 INITIAL_REQUEST_DELAY_SECONDS = int(os.getenv("INITIAL_REQUEST_DELAY_SECONDS"))
 
@@ -30,9 +29,9 @@ dispatcher = Dispatcher()
 async def main() -> None:
     # And the run events dispatching
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(partial(check_new_ads, bot, USE_ASYNC_LATEST_ADS_MODE),
+    scheduler.add_job(partial(check_new_ads_and_measure_spent_time, bot),
                       "interval", minutes=REQUEST_INTERVAL_MINUTES)
-    scheduler.add_job(partial(check_new_ads, bot, False),
+    scheduler.add_job(partial(check_new_ads_and_measure_spent_time, bot),
                       "date", run_date=datetime.now() + timedelta(seconds=INITIAL_REQUEST_DELAY_SECONDS))
     scheduler.start()
     await set_commands(bot)

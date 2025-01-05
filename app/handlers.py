@@ -138,42 +138,31 @@ async def add_query_by_url_step2(message: Message, state: FSMContext):
 @main_router.message(AddNewCheckerQueryByURL.query_url)
 async def add_query_by_url_step3(message: Message, state: FSMContext):
     await state.update_data(query_url=message.text)
-    data = await state.get_data()
-    await state.clear()
+    data = await get_data_from_and_clean_state(state)
 
     if not await db.check_query_url_exists(message.from_user.id, data["query_url"]):
         try:
+            parsed_ads = None
+            service_title = 'Olx та rieltor.ua'
             if "olx.ua/" in data["query_url"]:
-                parsed_ads = parser_olx.parse_all_ads(data["query_url"])
-                if parsed_ads:
-                    query_id = await db.create_new_checker_query(message.from_user.id, data["query_name"], data["query_url"])
-                    for parsed_ad in parsed_ads:
-                        await db.create_new_found_ad(query_id, parsed_ad['ad_url'], parsed_ad['ad_description'],
-                                                  parsed_ad['ad_price'], parsed_ad['currency'])
-
-                    await message.answer(f'Додано моніторинг: {html.bold(data["query_name"])}\n'
-                                         f'Знайдено {len(parsed_ads)} поточних оголошень\n'
-                                         f'URL запиту: {data["query_url"]}')
-                else:
-                    await message.answer(f'Введений вами URL не містить Olx оголошень')
+                parsed_ads = await get_olx_parsed_ads(data["query_url"])
+                service_title = 'Olx'
             elif "rieltor.ua/" in data["query_url"]:
                 parsed_ads = await parse_rieltor(data["query_url"])
-                if parsed_ads:
-                    query_id = await db.create_new_checker_query(message.from_user.id, data["query_name"],
-                                                              data["query_url"])
-                    for parsed_ad in parsed_ads:
-                        await db.create_new_found_ad(query_id, parsed_ad['ad_url'], parsed_ad['ad_description'],
-                                                  parsed_ad['ad_price'], parsed_ad['currency'])
-
-                    await message.answer(f'Додано моніторинг: {html.bold(data["query_name"])}\n'
-                                         f'Знайдено {len(parsed_ads)} поточних оголошень\n'
-                                         f'URL запиту: {data["query_url"]}')
-                else:
-                    await message.answer(f'Введений вами URL не містить rieltor.ua оголошень')
+                service_title = 'rieltor.ua'
+            else:
+                await message.answer(f'Підтримуються тільки сервіси {service_title}')
+            await save_found_ads_and_inform_user(
+                data["query_name"],
+                data["query_url"],
+                message,
+                parsed_ads,
+                service_title
+            )
         except IncorrectURL as e:
             await message.answer(e.message)
     else:
-        await message.answer(f'В переліку вже існує моніторинг з URL запиту: {html.bold(data["query_url"])}')
+        await check_and_inform_user_for_deleted_or_existing_query(data["query_url"], message)
 
 
 @main_router.callback_query(F.data == 'query_by_text')
@@ -186,23 +175,62 @@ async def add_query_by_text_step1(callback: CallbackQuery, state: FSMContext):
 @main_router.message(AddNewCheckerQueryByQueryText.query_text)
 async def add_query_by_text_step2(message: Message, state: FSMContext):
     await state.update_data(query_text=message.text)
-    data = await state.get_data()
-    await state.clear()
+    data = await get_data_from_and_clean_state(state)
 
     query_url = await transform_query_text_to_olx_url(data["query_text"])
     if not await db.check_query_url_exists(message.from_user.id, query_url):
-        query_id = await db.create_new_checker_query(message.from_user.id, data["query_text"], query_url)
-        parsed_ads = parser_olx.parse_all_ads(data["query_url"])
-        for parsed_ad in parsed_ads:
-            await db.create_new_found_ad(query_id, parsed_ad['ad_url'], parsed_ad['ad_description'],
-                                      parsed_ad['ad_price'], parsed_ad['currency'])
+        parsed_ads = await get_olx_parsed_ads(query_url)
+        await save_found_ads_and_inform_user(
+            data["query_text"],
+            query_url,
+            message,
+            parsed_ads,
+            "Olx"
+        )
+    else:
+        await check_and_inform_user_for_deleted_or_existing_query(query_url, message)
 
-        await message.answer(f'Додано моніторинг: {html.bold(data["query_text"])}\n'
+
+async def get_data_from_and_clean_state(state):
+    data = await state.get_data()
+    await state.clear()
+    return data
+
+
+async def get_olx_parsed_ads(query_url):
+    olx_queries_with_unique_ads = await parser_olx.get_parsed_ads({1: query_url})
+    parsed_ads = None
+    if 1 in olx_queries_with_unique_ads:
+        parsed_ads = olx_queries_with_unique_ads[1]
+    return parsed_ads
+
+
+async def save_found_ads_and_inform_user(query_name, query_url, message, parsed_ads, service_title):
+    if parsed_ads:
+        query_id = await db.create_new_checker_query(
+            message.from_user.id,
+            query_name,
+            query_url
+        )
+        for parsed_ad in parsed_ads:
+            await db.create_new_found_ad(
+                query_id,
+                parsed_ad['ad_url'],
+                parsed_ad['ad_description'],
+                parsed_ad['ad_price'],
+                parsed_ad['currency']
+            )
+
+        await message.answer(f'Додано моніторинг: {html.bold(query_name)}\n'
                              f'Знайдено {len(parsed_ads)} поточних оголошень\n'
                              f'URL запиту: {query_url}')
-    elif await db.check_query_url_is_deleted(message.from_user.id, query_url):
+    else:
+        await message.answer(f'Введений вами URL не містить {service_title} оголошень')
+
+
+async def check_and_inform_user_for_deleted_or_existing_query(query_url, message):
+    if await db.check_query_url_is_deleted(message.from_user.id, query_url):  # Відновити раніше видалений моніторинг
         query_id = await db.get_user_checker_query_id_by_url(message.from_user.id, query_url)
-        print(query_id)
         await db.set_checker_query_non_deleted_and_active(query_id)
         await message.answer(f'Відновлено з видалених моніторинг з URL запиту: {html.bold(query_url)}')
     else:
