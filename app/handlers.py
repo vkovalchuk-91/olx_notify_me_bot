@@ -6,14 +6,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import BotCommand, BotCommandScopeDefault, Message, CallbackQuery
 
-from app.parsers import parser_olx
 from app.db.db_interface import DatabaseInterface
 from app.injector_config import BotModule
 from app.keyboards import get_start_keyboard, get_add_new_or_edit_query_keyboard, \
     get_add_new_query_menu_inline_keyboard, get_edit_menu_inline_keyboard, get_query_edit_inline_keyboard
 from app.parsers.parser_rieltor import parse_rieltor
 from app.handlers_utilities import get_message_text_for_existing_user, get_message_text_for_new_user, \
-    transform_query_text_to_olx_url, IncorrectURL
+    transform_query_text_to_olx_url, IncorrectURL, get_data_from_and_clean_state, get_olx_parsed_ads, \
+    save_found_ads_and_inform_user, check_and_inform_user_for_deleted_or_existing_query
 
 main_router = Router(name=__name__)
 
@@ -189,49 +189,3 @@ async def add_query_by_text_step2(message: Message, state: FSMContext):
         )
     else:
         await check_and_inform_user_for_deleted_or_existing_query(query_url, message)
-
-
-async def get_data_from_and_clean_state(state):
-    data = await state.get_data()
-    await state.clear()
-    return data
-
-
-async def get_olx_parsed_ads(query_url):
-    olx_queries_with_unique_ads = await parser_olx.get_parsed_ads({1: query_url})
-    parsed_ads = None
-    if 1 in olx_queries_with_unique_ads:
-        parsed_ads = olx_queries_with_unique_ads[1]
-    return parsed_ads
-
-
-async def save_found_ads_and_inform_user(query_name, query_url, message, parsed_ads, service_title):
-    if parsed_ads:
-        query_id = await db.create_new_checker_query(
-            message.from_user.id,
-            query_name,
-            query_url
-        )
-        for parsed_ad in parsed_ads:
-            await db.create_new_found_ad(
-                query_id,
-                parsed_ad['ad_url'],
-                parsed_ad['ad_description'],
-                parsed_ad['ad_price'],
-                parsed_ad['currency']
-            )
-
-        await message.answer(f'Додано моніторинг: {html.bold(query_name)}\n'
-                             f'Знайдено {len(parsed_ads)} поточних оголошень\n'
-                             f'URL запиту: {query_url}')
-    else:
-        await message.answer(f'Введений вами URL не містить {service_title} оголошень')
-
-
-async def check_and_inform_user_for_deleted_or_existing_query(query_url, message):
-    if await db.check_query_url_is_deleted(message.from_user.id, query_url):  # Відновити раніше видалений моніторинг
-        query_id = await db.get_user_checker_query_id_by_url(message.from_user.id, query_url)
-        await db.set_checker_query_non_deleted_and_active(query_id)
-        await message.answer(f'Відновлено з видалених моніторинг з URL запиту: {html.bold(query_url)}')
-    else:
-        await message.answer(f'В переліку вже існує моніторинг з URL запиту: {html.bold(query_url)}')
