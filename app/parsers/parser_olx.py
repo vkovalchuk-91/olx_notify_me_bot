@@ -147,6 +147,7 @@ def extract_ads(queries_with_responses_text: Dict[int, List[str]]) -> Dict[int, 
         for query_id, responses_text in queries_with_responses_text.items():
             unique_urls = []
             for response_text in responses_text:
+                queries_with_unique_ads[query_id] = []
                 soup = BeautifulSoup(response_text, 'html.parser')
 
                 # Знайти перший елемент з data-testid="listing-grid"
@@ -184,10 +185,7 @@ def extract_ads(queries_with_responses_text: Dict[int, List[str]]) -> Dict[int, 
                                         ad_info['ad_price'], ad_info['currency'] = 0, "без ціни"
 
                         if ad_info:
-                            if query_id not in queries_with_unique_ads:
-                                queries_with_unique_ads[query_id] = []
                             queries_with_unique_ads[query_id].append(ad_info)
-
     return queries_with_unique_ads
 
 

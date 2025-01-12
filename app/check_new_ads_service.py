@@ -26,6 +26,7 @@ async def check_new_ads_and_measure_spent_time(bot):
 
 async def check_new_ads(bot):
     active_checker_queries = await db.get_all_active_checker_queries()
+    # Спочатку отримуємо словник для усіх OLX оголошень (ключі ID запиту, значення - список зі знайденими оголошеннями)
     all_olx_parsed_ads = await get_all_olx_parsed_ads(active_checker_queries)
     for query in active_checker_queries:
         saved_in_db_ads, saved_in_db_ads_urls, saved_in_db_deactivated_ads, saved_in_db_deactivated_urls = \
