@@ -70,7 +70,7 @@ async def get_saved_in_db_ads(query):
 
 async def get_parsed_ads(all_olx_parsed_ads, query):
     parsed_ads = []
-    if "olx.ua/" in query['query_url']:
+    if "olx.ua/" in query['query_url'] and query['query_id'] in all_olx_parsed_ads:
         parsed_ads = all_olx_parsed_ads[query['query_id']]
     elif "rieltor.ua/" in query['query_url']:
         parsed_ads = await parse_rieltor(query['query_url'])
