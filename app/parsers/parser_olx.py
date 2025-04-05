@@ -162,8 +162,8 @@ def extract_ads(queries_with_responses_text: Dict[int, List[str]]) -> Dict[int, 
 
                         ad_card_title = link.find('div', {'data-cy': 'ad-card-title'})
                         if ad_card_title:
-                            # Знайти елемент 'a' з класом 'css-z3gu2d' всередині ad_card_title
-                            a_tag = ad_card_title.find('a', class_='css-qo0cxu')
+                            # Знайти елемент з тегом 'a' всередині ad_card_title
+                            a_tag = ad_card_title.find('a')
                             if a_tag:
                                 # Знайти url оголошення
                                 url = HOST + a_tag['href']
@@ -174,7 +174,7 @@ def extract_ads(queries_with_responses_text: Dict[int, List[str]]) -> Dict[int, 
                                     ad_info['ad_url'] = url
 
                                     # Знайти текст заголовка оголошення
-                                    ad_description = a_tag.find('h4', class_='css-1s3qyje').text
+                                    ad_description = a_tag.find('h4').text
                                     ad_info['ad_description'] = ad_description
 
                                     # Знайти елемент 'p' з атрибутом 'data-testid="ad-price"' всередині ad_card_title
@@ -205,35 +205,39 @@ def split_price(undivided_price: str) -> Tuple[int, str]:
     return price, currency
 
 
-async def test():
-    queries = {
-        1: 'https://www.olx.ua/uk/list/q-%D0%AF-%D0%B1%D0%B0%D1%87%D1%83-%D0%B2%D0%B0%D1%81-%D1%86%D1%96%D0%BA%D0%B0%D0'
-           '%B2%D0%B8%D1%82%D1%8C-%D0%BF%D1%96%D1%82%D1%8C%D0%BC%D0%B0/?search%5Bfilter_float_price:to%5D=250',
-        2: 'https://www.olx.ua/uk/dom-i-sad/mebel/ofisnaya-mebel/q-%D1%81%D1%82%D1%96%D0%BB-%D1%80%D0%BE%D0%B7%D0%BA%D0'
-           '%BB%D0%B0%D0%B4%D0%BD%D0%B8%D0%B9/?currency=UAH&search%5Bfilter_float_price:to%5D=1200',
-        3: 'https://www.olx.ua/uk/cherkassy/q-%D0%B1%D1%83%D1%82%D1%8B%D0%BB%D1%8C/?min_id=854431324&reason='
-           'observed_search',
-        4: 'https://www.olx.ua/uk/list/q-%D0%B1%D0%B0%D0%BC%D0%BF%D0%B8-43/?search%5Bfilter_float_price:to%5D=1500',
-        5: 'https://www.olx.ua/uk/list/q-%D0%BA%D0%BE%D0%BF%D0%BE%D1%87%D0%BA%D0%B8-43/?search%5Bfilter_float_price:'
-           'to%5D=1500',
-        6: 'https://www.olx.ua/uk/list/q-Повісті-дикого-степу/',
-        7: 'https://www.olx.ua/uk/cherkassy/q-%D0%B1%D1%83%D1%82%D0%BB%D1%8C/?min_id=853718254&reason=observed_search&'
-           'search%5Border%5D=filter_float_price%3Aasc',
-        8: 'https://www.olx.ua/uk/cherkassy/q-%D0%B1%D1%83%D1%82%D0%B8%D0%BB%D1%8C/?min_id=855940298&reason='
-           'observed_search',
-        9: 'https://www.olx.ua/uk/cherkassy/q-%D0%B1%D1%83%D1%82%D0%B5%D0%BB%D1%8C/?min_id=855940298&reason='
-           'observed_search',
-        10: 'https://www.olx.ua/uk/list/q-Usams-T20/',
-        11: 'https://www.olx.ua/uk/list/q-%D1%84%D1%83%D1%82%D0%B7%D0%B0%D0%BB%D0%BA%D0%B8-43/?search%5B'
-            'filter_float_price%3Ato%5D=1500',
-        12: 'https://www.olx.ua/uk/list/q-юпак/',
-        13: 'https://www.olx.ua/uk/list/q-Кіно-дикого-степу/',
-        14: 'https://www.olx.ua/uk/list/q-Всьо-чотко/',
-    }
-    queries_with_unique_ads = await get_parsed_ads(queries)
-    print(len(queries_with_unique_ads))
-    for query_id, adds in queries_with_unique_ads.items():
-        print(f'{query_id}: found {len(adds)} adds')
-
-if __name__ == '__main__':
-    asyncio.run(test())
+# async def test():
+#     queries = {
+#         1: 'https://www.olx.ua/uk/list/q-%D0%AF-%D0%B1%D0%B0%D1%87%D1%83-%D0%B2%D0%B0%D1%81-%D1%86%D1%96%D0%BA%D0%B0%D0'
+#            '%B2%D0%B8%D1%82%D1%8C-%D0%BF%D1%96%D1%82%D1%8C%D0%BC%D0%B0/?search%5Bfilter_float_price:to%5D=250',
+#     }
+#     # queries = {
+#     #     1: 'https://www.olx.ua/uk/list/q-%D0%AF-%D0%B1%D0%B0%D1%87%D1%83-%D0%B2%D0%B0%D1%81-%D1%86%D1%96%D0%BA%D0%B0%D0'
+#     #        '%B2%D0%B8%D1%82%D1%8C-%D0%BF%D1%96%D1%82%D1%8C%D0%BC%D0%B0/?search%5Bfilter_float_price:to%5D=250',
+#     #     2: 'https://www.olx.ua/uk/dom-i-sad/mebel/ofisnaya-mebel/q-%D1%81%D1%82%D1%96%D0%BB-%D1%80%D0%BE%D0%B7%D0%BA%D0'
+#     #        '%BB%D0%B0%D0%B4%D0%BD%D0%B8%D0%B9/?currency=UAH&search%5Bfilter_float_price:to%5D=1200',
+#     #     3: 'https://www.olx.ua/uk/cherkassy/q-%D0%B1%D1%83%D1%82%D1%8B%D0%BB%D1%8C/?min_id=854431324&reason='
+#     #        'observed_search',
+#     #     4: 'https://www.olx.ua/uk/list/q-%D0%B1%D0%B0%D0%BC%D0%BF%D0%B8-43/?search%5Bfilter_float_price:to%5D=1500',
+#     #     5: 'https://www.olx.ua/uk/list/q-%D0%BA%D0%BE%D0%BF%D0%BE%D1%87%D0%BA%D0%B8-43/?search%5Bfilter_float_price:'
+#     #        'to%5D=1500',
+#     #     6: 'https://www.olx.ua/uk/list/q-Повісті-дикого-степу/',
+#     #     7: 'https://www.olx.ua/uk/cherkassy/q-%D0%B1%D1%83%D1%82%D0%BB%D1%8C/?min_id=853718254&reason=observed_search&'
+#     #        'search%5Border%5D=filter_float_price%3Aasc',
+#     #     8: 'https://www.olx.ua/uk/cherkassy/q-%D0%B1%D1%83%D1%82%D0%B8%D0%BB%D1%8C/?min_id=855940298&reason='
+#     #        'observed_search',
+#     #     9: 'https://www.olx.ua/uk/cherkassy/q-%D0%B1%D1%83%D1%82%D0%B5%D0%BB%D1%8C/?min_id=855940298&reason='
+#     #        'observed_search',
+#     #     10: 'https://www.olx.ua/uk/list/q-Usams-T20/',
+#     #     11: 'https://www.olx.ua/uk/list/q-%D1%84%D1%83%D1%82%D0%B7%D0%B0%D0%BB%D0%BA%D0%B8-43/?search%5B'
+#     #         'filter_float_price%3Ato%5D=1500',
+#     #     12: 'https://www.olx.ua/uk/list/q-юпак/',
+#     #     13: 'https://www.olx.ua/uk/list/q-Кіно-дикого-степу/',
+#     #     14: 'https://www.olx.ua/uk/list/q-Всьо-чотко/',
+#     # }
+#     queries_with_unique_ads = await get_parsed_ads(queries)
+#     print(len(queries_with_unique_ads))
+#     for query_id, adds in queries_with_unique_ads.items():
+#         print(f'{query_id}: found {len(adds)} adds')
+#
+# if __name__ == '__main__':
+#     asyncio.run(test())
