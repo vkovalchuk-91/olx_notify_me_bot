@@ -1,58 +1,144 @@
+import time
+from typing import List, Dict
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-# Налаштовуємо headless режим
-options = Options()
-options.add_argument("--headless")
-options.add_argument("--disable-gpu")
-options.add_argument("--no-sandbox")
+import win32gui
+import win32con
 
-driver = webdriver.Chrome(options=options)
 
-try:
-    driver.get("https://iqsaved.com/viewer/yulia.or.julia/")
+async def get_parsed_content(
+        username: str,
+        user_id: int,
+        story_content_type_id: int,
+        post_content_type_id: int,
+        photo_media_type_id: int,
+        video_media_type_id: int
+) -> List[Dict]:
+    options = Options()
+    # options.add_argument("--headless")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    driver = webdriver.Chrome(options=options)
 
-    wait = WebDriverWait(driver, 60)
+    parsed_content = []
 
-    # Чекаємо на появу елементів з контентом постів
-    wait.until(EC.presence_of_element_located(
-        (By.CSS_SELECTOR, "div.profile-tabs__content-item.profile-tabs__posts ul.media-items")
-    ))
+    try:
+        # Налаштовуємо headless режим
+        driver.get(f"https://iqsaved.com/viewer/{username}/")
+        # time.sleep(1)
+        # hide_chrome_window()
 
-    # Чекаємо на Сторіс (опційно, якщо вони є)
-    stories_links = driver.find_elements(By.CSS_SELECTOR,
-        "div.profile-tabs__content-item.profile-tabs__stories "
-        "ul.media-items "
-        "li.media-items__item "
-        "div.media-items__info "
-        "div.media-items__action "
-        "a[download]"
-    )
+        wait = WebDriverWait(driver, 60)
 
-    print("Сторіс:")
-    for i, link in enumerate(stories_links, 1):
-        href = link.get_attribute("href")
-        download = link.get_attribute("download")
-        print(f"{i}. URL: {href}\n   Назва: {download}\n")
+        # Чекаємо на появу елементів з контентом постів
+        wait.until(EC.presence_of_element_located(
+            (By.CSS_SELECTOR, "div.profile-tabs__content-item.profile-tabs__posts ul.media-items")
+        ))
 
-    # Чекаємо на пости
-    posts_links = driver.find_elements(By.CSS_SELECTOR,
-        "div.profile-tabs__content-item.profile-tabs__posts "
-        "ul.media-items "
-        "li.media-items__item "
-        "div.media-items__info "
-        "div.media-items__action "
-        "a[download]"
-    )
+        # Чекаємо на пости
+        posts_links = driver.find_elements(By.CSS_SELECTOR,
+                                           "div.profile-tabs__content-item.profile-tabs__posts "
+                                           "ul.media-items "
+                                           "li.media-items__item "
+                                           "div.media-items__info "
+                                           "div.media-items__action "
+                                           "a[download]"
+                                           )
 
-    print("Пости:")
-    for i, link in enumerate(posts_links, 1):
-        href = link.get_attribute("href")
-        download = link.get_attribute("download")
-        print(f"{i}. URL: {href}\n   Назва: {download}\n")
+        print(f"Пости {username}:")
+        for i, link in enumerate(posts_links, 1):
+            url = link.get_attribute("href")
+            file_name = link.get_attribute("download")
+            media_type = await get_media_type(url)
+            media_type_id = await get_media_type_id(media_type, video_media_type_id, photo_media_type_id)
 
-finally:
-    driver.quit()
+            content_item = await get_content_item(
+                "Post",
+                media_type,
+                media_type_id,
+                post_content_type_id,
+                user_id,
+                username,
+                file_name,
+                url
+            )
+            parsed_content.append(content_item)
+
+            print(f"{i}. URL: {url}\n   Назва: {file_name}")
+
+        # Чекаємо на Сторіс (опційно, якщо вони є)
+        stories_links = driver.find_elements(By.CSS_SELECTOR,
+                                             "div.profile-tabs__content-item.profile-tabs__stories "
+                                             "ul.media-items "
+                                             "li.media-items__item "
+                                             "div.media-items__info "
+                                             "div.media-items__action "
+                                             "a[download]"
+                                             )
+
+        print(f"Сторіс {username}:")
+        for i, link in enumerate(stories_links, 1):
+            url = link.get_attribute("href")
+            file_name = link.get_attribute("download")
+            media_type = await get_media_type(url)
+            media_type_id = await get_media_type_id(media_type, video_media_type_id, photo_media_type_id)
+
+            content_item = await get_content_item(
+                "Story",
+                media_type,
+                media_type_id,
+                story_content_type_id,
+                user_id,
+                username,
+                file_name,
+                url
+            )
+            parsed_content.append(content_item)
+
+            print(f"{i}. URL: {url}\n   Назва: {file_name}")
+
+    finally:
+        driver.quit()
+
+    return parsed_content
+
+
+async def get_content_item(content_type, media_type, media_type_id, content_type_id, user_id, username, file_name, url):
+    content_item = {
+        'content_type': content_type,
+        'content_type_id': content_type_id,
+        'media_type': media_type,
+        'media_type_id': media_type_id,
+        'username': username,
+        'user_id': user_id,
+        'file_name': file_name,
+        'url': url
+    }
+    return content_item
+
+
+async def get_media_type(url):
+    if url.endswith(".mp4"):
+        return "Video"
+    else:
+        return "Photo"
+
+
+async def get_media_type_id(media_type, video_media_type_id, photo_media_type_id):
+    if media_type == "Video":
+        return video_media_type_id
+    else:
+        return photo_media_type_id
+
+
+def hide_chrome_window():
+    def callback(hwnd, _):
+        title = win32gui.GetWindowText(hwnd)
+        if "Chrome" in title:
+            win32gui.ShowWindow(hwnd, win32con.SW_HIDE)  # або SW_MINIMIZE
+    win32gui.EnumWindows(callback, None)

@@ -13,12 +13,14 @@ from dotenv import load_dotenv
 
 from app.check_new_ads_service import check_new_ads_and_measure_spent_time
 from app.handlers import main_router, set_commands
+from app.insta.check_new_insta_content_service import check_new_insta_content_and_measure_spent_time
 
 # Loading variables from the .env file
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")  # Bot token can be obtained via https://t.me/BotFather
 REQUEST_INTERVAL_MINUTES = int(os.getenv("REQUEST_INTERVAL_MINUTES"))
 INITIAL_REQUEST_DELAY_SECONDS = int(os.getenv("INITIAL_REQUEST_DELAY_SECONDS"))
+INSTA_REQUEST_INTERVAL_MINUTES = int(os.getenv("INSTA_REQUEST_INTERVAL_MINUTES"))
 
 
 # All handlers should be attached to the Router (or Dispatcher)
@@ -29,10 +31,17 @@ dispatcher = Dispatcher()
 async def main() -> None:
     # And the run events dispatching
     scheduler = AsyncIOScheduler()
+
     scheduler.add_job(partial(check_new_ads_and_measure_spent_time, bot),
                       "interval", minutes=REQUEST_INTERVAL_MINUTES)
     scheduler.add_job(partial(check_new_ads_and_measure_spent_time, bot),
                       "date", run_date=datetime.now() + timedelta(seconds=INITIAL_REQUEST_DELAY_SECONDS))
+
+    scheduler.add_job(partial(check_new_insta_content_and_measure_spent_time, bot),
+                      "interval", minutes=INSTA_REQUEST_INTERVAL_MINUTES)
+    scheduler.add_job(partial(check_new_insta_content_and_measure_spent_time, bot),
+                      "date", run_date=datetime.now() + timedelta(seconds=INITIAL_REQUEST_DELAY_SECONDS))
+
     scheduler.start()
     await set_commands(bot)
     dispatcher.include_router(main_router)
