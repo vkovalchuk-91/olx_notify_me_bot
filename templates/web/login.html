@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="card" style="max-width:420px;margin:4rem auto;">
+    <h1>Вхід</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn" type="submit">Увійти</button>
+    </form>
+    <p style="margin-top:1rem">
+        Немає акаунта? <a href="{% url 'web:register' %}">Зареєструйтесь через Telegram</a>.
+    </p>
+</div>
+{% endblock %}

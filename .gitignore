@@ -1,0 +1,15 @@
+*.pyc
+__pycache__/
+*.pyo
+*.db
+*.db-journal
+.env
+.venv/
+venv/
+staticfiles/
+.pytest_cache/
+.coverage
+htmlcov/
+.idea/
+*.log
+.env copy

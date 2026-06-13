@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Моніторинги{% endblock %}
+{% block content %}
+<h1>{{ source_label }}</h1>
+<div class="card">
+    {% if source == 'olx' %}
+    <a class="btn" href="{% url 'web:olx_query_add_text' %}">Додати OLX за текстом</a>
+    <a class="btn" href="{% url 'web:olx_query_add_url' %}">Додати OLX за URL</a>
+    <a class="btn" href="{% url 'web:olx_found_ads' %}">OLX оголошення</a>
+    <a class="btn" href="{% url 'web:trigger_check_olx' %}">Запустити перевірку</a>
+    {% elif source == 'rieltor' %}
+    <a class="btn" href="{% url 'web:rieltor_query_add_url' %}">Додати Rieltor за URL</a>
+    <a class="btn" href="{% url 'web:rieltor_found_ads' %}">Rieltor оголошення</a>
+    <a class="btn" href="{% url 'web:trigger_check_rieltor' %}">Запустити перевірку</a>
+    {% else %}
+    <a class="btn" href="{% url 'web:olx_queries' %}">OLX моніторинги</a>
+    <a class="btn" href="{% url 'web:rieltor_queries' %}">Rieltor моніторинги</a>
+    {% endif %}
+</div>
+<div class="card">
+    <table>
+        <thead><tr><th>Назва</th><th>Користувач</th><th>Джерело</th><th>URL</th><th>Статус</th><th>Дії</th></tr></thead>
+        <tbody>
+        {% for q in queries %}
+        <tr>
+            <td>{{ q.query_name }}</td>
+            <td>{{ q.user }}</td>
+            <td>{{ q.get_source_display }}</td>
+            <td><a href="{{ q.query_url }}" target="_blank">відкрити</a></td>
+            <td><span class="badge {% if q.is_active %}active{% else %}inactive{% endif %}">{% if q.is_active %}✅ Активний{% else %}🚫 Неактивний{% endif %}</span></td>
+            <td>
+                <a href="{% url 'web:query_toggle' q.id %}">{% if q.is_active %}Деактивувати{% else %}Активувати{% endif %}</a> |
+                <a href="{% url 'web:query_delete' q.id %}">Видалити</a> |
+                <a href="{% url 'web:found_ads' %}?query_id={{ q.id }}">Оголошення</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Моніторингів немає</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% include 'web/pagination.html' %}
+</div>
+{% endblock %}

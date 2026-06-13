@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Додати моніторинг (текст){% endblock %}
+{% block content %}
+<h1>Додати моніторинг за текстом (OLX)</h1>
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        {% if user.is_staff %}
+        <label>Telegram користувач</label>
+        <select name="user_telegram_id" required>
+            <option value="">-- оберіть --</option>
+            {% for u in users %}
+            <option value="{{ u.user_telegram_id }}">{{ u.full_name|default:u.username }} ({{ u.user_telegram_id }})</option>
+            {% endfor %}
+        </select>
+        {% else %}
+        <div class="card" style="background:#0f172a;padding:.75rem;margin-bottom:1rem">
+            {% for u in users %}
+            <strong>Telegram користувач:</strong> {{ u.full_name|default:u.username }} ({{ u.user_telegram_id }})
+            {% empty %}
+            <span style="color: var(--danger)">Telegram профіль не прив’язаний. Зареєструйтесь через Telegram ще раз.</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <label>Текст запиту</label>
+        <input type="text" name="query_text" required>
+        <p style="margin-top:1rem"><button class="btn" type="submit">Додати</button></p>
+    </form>
+</div>
+{% endblock %}

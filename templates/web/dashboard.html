@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="grid">
+    <div class="card"><div class="stat">{{ active_queries_count }}</div>Активних моніторингів</div>
+    <div class="card"><div class="stat">{{ inactive_queries_count }}</div>Деактивованих</div>
+    <div class="card"><div class="stat">{{ olx_queries_count }}</div>OLX активних</div>
+    <div class="card"><div class="stat">{{ rieltor_queries_count }}</div>Rieltor активних</div>
+    <div class="card"><div class="stat">{{ insta_users_count }}</div>Instagram активних</div>
+</div>
+<div class="card">
+    <h2>Швидкі дії</h2>
+    <a class="btn" href="{% url 'web:trigger_check_olx' %}">Запустити OLX</a>
+    <a class="btn" href="{% url 'web:trigger_check_rieltor' %}">Запустити Rieltor.ua</a>
+    <a class="btn" href="{% url 'web:trigger_check_insta' %}">Запустити перевірку Instagram</a>
+</div>
+<div class="card">
+    <h2>Останні оголошення</h2>
+    <table>
+        <thead><tr><th>Сервіс</th><th>Користувач</th><th>Запит</th><th>Опис</th><th>Ціна</th><th>URL</th></tr></thead>
+        <tbody>
+        {% for ad in recent_ads %}
+        <tr>
+            <td>{{ ad.query.get_source_display }}</td>
+            <td>{{ ad.query.user }}</td>
+            <td>{{ ad.query.query_name }}</td>
+            <td>{{ ad.ad_description|truncatechars:60 }}</td>
+            <td>{{ ad.ad_price }} {{ ad.currency }}</td>
+            <td><a href="{{ ad.ad_url }}" target="_blank">відкрити</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Оголошень поки немає</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

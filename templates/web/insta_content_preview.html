@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Instagram media{% endblock %}
+{% block content %}
+<h1>Instagram медіа — @{{ item.observed_user.username }}</h1>
+<div class="card">
+    <p>
+        <strong>Тип:</strong> {{ item.content_type }} /
+        <strong>Медіа:</strong> {{ item.media_type }} /
+        <strong>Файл:</strong> {{ item.file_name }}
+    </p>
+    <div class="media-preview">
+        {% if item.media_type == 'video' %}
+        <video controls autoplay muted src="{{ item.url }}"></video>
+        {% else %}
+        <img src="{{ item.url }}" alt="{{ item.file_name }}">
+        {% endif %}
+    </div>
+    <p style="margin-top:1rem">
+        <a class="btn btn-secondary" href="{{ item.url }}" target="_blank">Відкрити оригінал</a>
+    </p>
+</div>
+{% endblock %}

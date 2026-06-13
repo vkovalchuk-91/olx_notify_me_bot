@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}OLX Notify{% endblock %}</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --accent: #38bdf8; --muted: #94a3b8; --danger: #f87171; --success: #4ade80; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+        a { color: var(--accent); text-decoration: none; }
+        .layout { display: flex; min-height: 100vh; }
+        nav { width: 260px; background: #111827; padding: 1.5rem 1rem; position: relative; z-index: 10; }
+        nav a, nav .nav-button { display: block; width: 100%; padding: .6rem .8rem; border-radius: 8px; margin-bottom: .25rem; color: var(--text); text-align: left; background: transparent; border: 0; font: inherit; cursor: pointer; }
+        nav a:hover, nav a.active, nav .nav-button:hover { background: var(--card); color: var(--accent); }
+        .service-menu { position: relative; margin-bottom: .25rem; }
+        .service-menu::after { content: ''; display: none; position: absolute; top: 0; left: 100%; width: 1rem; height: 100%; }
+        .service-title { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: .6rem .8rem; border-radius: 8px; color: var(--text); cursor: default; }
+        .service-title::after { content: '›'; color: var(--muted); }
+        .service-menu:hover .service-title, .service-menu:focus-within .service-title { background: var(--card); color: var(--accent); }
+        .service-menu:hover::after, .service-menu:focus-within::after { display: block; }
+        .service-submenu { position: absolute; top: -.5rem; left: calc(100% + .75rem); min-width: 240px; padding: .65rem; border-radius: 12px; background: #111827; border: 1px solid #334155; box-shadow: 0 16px 40px rgba(0,0,0,.35); opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(-6px); transition: opacity .15s ease, transform .15s ease, visibility .15s; }
+        .service-submenu::before { content: ''; position: absolute; top: 0; right: 100%; width: 1rem; height: 100%; }
+        .service-menu:hover .service-submenu, .service-menu:focus-within .service-submenu { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(0); }
+        .service-submenu a { padding: .5rem .7rem; font-size: .95rem; color: var(--muted); white-space: nowrap; }
+        .service-submenu a:hover { color: var(--accent); }
+        main { flex: 1; padding: 2rem; }
+        .card { background: var(--card); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .stat { font-size: 2rem; font-weight: 700; color: var(--accent); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: .75rem; text-align: left; border-bottom: 1px solid #334155; }
+        .btn { display: inline-block; padding: .55rem 1rem; border-radius: 8px; border: none; cursor: pointer; background: var(--accent); color: #0f172a; font-weight: 600; }
+        .btn-secondary { background: #475569; color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .messages { margin-bottom: 1rem; }
+        .message { padding: .75rem 1rem; border-radius: 8px; margin-bottom: .5rem; }
+        .message.success { background: #14532d; }
+        .message.error { background: #7f1d1d; }
+        .message.warning { background: #78350f; }
+        .message.info { background: #1e3a5f; }
+        form label { display: block; margin: .5rem 0 .25rem; color: var(--muted); }
+        form input, form select, form textarea { width: 100%; padding: .6rem; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: var(--text); }
+        .badge { padding: .2rem .5rem; border-radius: 999px; font-size: .8rem; }
+        .badge.active { background: #14532d; color: var(--success); }
+        .badge.inactive { background: #44403c; color: #fbbf24; }
+        .filters { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .filters input, .filters select { width: auto; min-width: 160px; }
+        .pagination { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; color: var(--muted); }
+        .pagination-links { display: flex; gap: .4rem; flex-wrap: wrap; }
+        .pagination a, .pagination .current { padding: .35rem .65rem; border-radius: 6px; background: #0f172a; border: 1px solid #334155; }
+        .pagination .current { color: #0f172a; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+        .media-preview { display: flex; justify-content: center; border-radius: 12px; background: #0f172a; padding: 1rem; }
+        .media-preview img, .media-preview video { max-width: 100%; max-height: 80vh; border-radius: 8px; }
+        h1, h2 { margin-top: 0; }
+    </style>
+</head>
+<body>
+<div class="layout">
+    {% if user.is_authenticated %}
+    <nav>
+        <h3>Notify Bot</h3>
+        <a href="{% url 'web:dashboard' %}">Dashboard</a>
+        <div class="service-menu">
+            <div class="service-title">OLX</div>
+            <div class="service-submenu">
+                <a href="{% url 'web:olx_queries' %}">Моніторинги</a>
+                <a href="{% url 'web:olx_query_add_text' %}">Додати за текстом</a>
+                <a href="{% url 'web:olx_query_add_url' %}">Додати за URL</a>
+                <a href="{% url 'web:olx_found_ads' %}">Оголошення</a>
+                <a href="{% url 'web:trigger_check_olx' %}">Запустити перевірку</a>
+            </div>
+        </div>
+        <div class="service-menu">
+            <div class="service-title">Rieltor.ua</div>
+            <div class="service-submenu">
+                <a href="{% url 'web:rieltor_queries' %}">Моніторинги</a>
+                <a href="{% url 'web:rieltor_query_add_url' %}">Додати за URL</a>
+                <a href="{% url 'web:rieltor_found_ads' %}">Оголошення</a>
+                <a href="{% url 'web:trigger_check_rieltor' %}">Запустити перевірку</a>
+            </div>
+        </div>
+        <div class="service-menu">
+            <div class="service-title">Instagram</div>
+            <div class="service-submenu">
+                <a href="{% url 'web:insta_users' %}">Моніторинги</a>
+                <a href="{% url 'web:insta_content' %}">Контент</a>
+                <a href="{% url 'web:trigger_check_insta' %}">Запустити перевірку</a>
+            </div>
+        </div>
+        <a href="{% url 'web:queries_list' %}">Всі моніторинги</a>
+        <a href="{% url 'web:found_ads' %}">Всі оголошення</a>
+        {% if user.is_staff %}
+        <a href="{% url 'web:admin_users' %}">Користувачі (admin)</a>
+        <a href="{% url 'web:admin_logs' %}">Логи (admin)</a>
+        <a href="/admin/">Django Admin</a>
+        {% endif %}
+        <hr style="border-color:#334155;margin:1rem 0">
+        <form method="post" action="{% url 'web:logout' %}">
+            {% csrf_token %}
+            <button class="nav-button" type="submit">Вийти ({{ user.username }})</button>
+        </form>
+    </nav>
+    {% endif %}
+    <main>
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</div>
+</body>
+</html>

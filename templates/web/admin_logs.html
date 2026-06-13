@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Admin Logs{% endblock %}
+{% block content %}
+<h1>Логи системи</h1>
+<div class="card">
+    <form class="filters" method="get">
+        <select name="level">
+            <option value="">Всі рівні</option>
+            {% for value, label in log_levels %}
+            <option value="{{ value }}" {% if level == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="source">
+            <option value="">Всі джерела</option>
+            {% for value, label in log_sources %}
+            <option value="{{ value }}" {% if source == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="job_name" placeholder="job name" value="{{ job_name }}">
+        <button class="btn" type="submit">Фільтрувати</button>
+    </form>
+    <table>
+        <thead><tr><th>Час</th><th>Рівень</th><th>Джерело</th><th>Job</th><th>Повідомлення</th></tr></thead>
+        <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.created_at }}</td>
+            <td>{{ log.level }}</td>
+            <td>{{ log.source }}</td>
+            <td>{{ log.job_name }}</td>
+            <td><code>{{ log.message|truncatechars:200 }}</code></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Логів немає</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% include 'web/pagination.html' %}
+</div>
+{% endblock %}

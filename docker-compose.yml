@@ -1,12 +1,76 @@
-version: '3.8'
-
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py migrate --database logs audit_logs &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 1 --timeout 120"
+    env_file: .env
+    environment:
+      USE_SQLITE: "false"
+      LOG_DB_NAME: /app/local_data/job_logs.sqlite3
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
-      - db_data:/bot # Монтуємо папку для бази даних
+      - logs_data:/app/local_data
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: celery -A config worker -l info --pool=solo --concurrency=1
+    env_file: .env
+    environment:
+      USE_SQLITE: "false"
+      LOG_DB_NAME: /app/local_data/job_logs.sqlite3
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - logs_data:/app/local_data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    build: .
+    command: celery -A config beat -l info
+    env_file: .env
+    environment:
+      USE_SQLITE: "false"
+      LOG_DB_NAME: /app/local_data/job_logs.sqlite3
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - logs_data:/app/local_data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  bot:
+    build: .
+    command: python manage.py run_telegram_bot
+    env_file: .env
+    environment:
+      USE_SQLITE: "false"
+      LOG_DB_NAME: /app/local_data/job_logs.sqlite3
+    volumes:
+      - logs_data:/app/local_data
+    restart: unless-stopped
 
 volumes:
-  db_data:
+  logs_data:

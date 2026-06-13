@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Instagram content{% endblock %}
+{% block content %}
+<h1>Instagram контент{% if username %} — @{{ username }}{% endif %}</h1>
+<div class="card">
+    <table>
+        <thead><tr><th>User</th><th>Тип</th><th>Медіа</th><th>Файл</th><th>URL</th><th>Дата</th></tr></thead>
+        <tbody>
+        {% for item in content_items %}
+        <tr>
+            <td>@{{ item.observed_user.username }}</td>
+            <td>{{ item.content_type }}</td>
+            <td>{{ item.media_type }}</td>
+            <td>{{ item.file_name|truncatechars:40 }}</td>
+            <td><a href="{% url 'web:insta_content_preview' item.id %}" target="_blank">переглянути</a></td>
+            <td>{{ item.created_at }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Контенту немає</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% include 'web/pagination.html' %}
+</div>
+{% endblock %}

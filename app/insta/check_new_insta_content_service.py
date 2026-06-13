@@ -16,8 +16,6 @@ from app.insta.insta_parser_anonyig_com import get_parsed_content
 load_dotenv()
 # INSTA_LOGIN = os.getenv("INSTA_LOGIN")
 # INSTA_PASSWORD = os.getenv("INSTA_PASSWORD")
-INSTA_RECEIVER_TELEGRAM_ID = os.getenv("INSTA_RECEIVER_TELEGRAM_ID")
-INSTA_OBSERVED_USERNAMES = os.getenv("INSTA_OBSERVED_USERNAMES", "")
 
 db = injector.Injector([InstaDBModule]).get(InstaSQLiteDatabase)
 L = instaloader.Instaloader()
@@ -36,38 +34,7 @@ async def check_new_insta_content_and_measure_spent_time(bot):
 
 
 async def check_new_insta_content(bot):
-    story_content_type_id, post_content_type_id, photo_media_type_id, video_media_type_id = await get_type_ids()
-    usernames = INSTA_OBSERVED_USERNAMES.split(",") if INSTA_OBSERVED_USERNAMES else []
-
-    for username in usernames:
-        if not await db.is_user_registered(username):
-            user_id = await db.register_new_user(username)
-        else:
-            user_id = await db.get_user_id_by_username(username)
-
-        content = await get_parsed_content(
-            username,
-            user_id,
-            story_content_type_id,
-            post_content_type_id,
-            photo_media_type_id,
-            video_media_type_id
-        )
-        for content_item in content:
-            if not await db.is_content_item_exist(
-                content_item['content_type_id'],
-                content_item['media_type_id'],
-                content_item['user_id'],
-                content_item['file_name'],
-            ):
-                await db.save_new_content(
-                    content_item['content_type_id'],
-                    content_item['media_type_id'],
-                    content_item['user_id'],
-                    content_item['file_name'],
-                    content_item['url']
-                )
-                await send_message_to_user_with_new_found_content_item(bot, content_item, INSTA_RECEIVER_TELEGRAM_ID)
+    logging.warning('Legacy Instagram checker is disabled. Use the Django Celery Instagram task.')
 
 
 # async def get_parsed_content(

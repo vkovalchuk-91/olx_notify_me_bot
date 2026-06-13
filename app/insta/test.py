@@ -17,8 +17,6 @@ from app.injector_config import InstaDBModule
 load_dotenv()
 INSTA_LOGIN = os.getenv("INSTA_LOGIN")
 INSTA_PASSWORD = os.getenv("INSTA_PASSWORD")
-INSTA_RECEIVER_TELEGRAM_ID = os.getenv("INSTA_RECEIVER_TELEGRAM_ID")
-INSTA_OBSERVED_USERNAMES = os.getenv("INSTA_RECEIVER_TELEGRAM_ID", "")
 
 db = injector.Injector([InstaDBModule]).get(InstaSQLiteDatabase)
 L = instaloader.Instaloader()
