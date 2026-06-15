@@ -115,12 +115,28 @@ docker compose up --build -d
 - `Dockerfile` — легкий образ для `web`, `beat`, `bot`
 - `Dockerfile.worker` — образ для `worker` з Playwright Chromium
 
-Якщо перед цим збірка падала через `no space left on device`, очисти старі Docker-шари:
+Якщо перед цим збірка падала через `no space left on device`, спочатку очисти диск:
 
 ```bash
+docker compose down
 docker system prune -a -f
 docker builder prune -a -f
+sudo apt-get clean
+sudo journalctl --vacuum-time=3d
+df -h
+docker system df
 ```
+
+Потім збирай по частинах:
+
+```bash
+docker compose build web
+docker compose up -d redis web beat bot
+docker compose build worker
+docker compose up -d worker
+```
+
+Якщо місця все одно не вистачає, збільш boot disk до `30 GB` у Google Cloud Console і розшир файлову систему на VM.
 
 Міграції:
 
