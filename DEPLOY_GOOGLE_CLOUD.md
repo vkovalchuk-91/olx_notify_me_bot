@@ -4,7 +4,7 @@
 
 Рекомендований варіант для цього проєкту: Google Compute Engine `e2-micro` + Docker Compose + безкоштовний український домен `.pp.ua` + Caddy для HTTPS.
 
-Cloud Run менш підходить, бо проєкт має кілька довгоживучих сервісів: `web`, `worker`, `beat`, `bot`, `redis`, Playwright і локальну SQLite базу для логів.
+Cloud Run менш підходить, бо проєкт має кілька довгоживучих сервісів: `web`, `worker`, `beat`, `bot`, `redis`, Selenium/Chromium scraper і локальну SQLite базу для логів.
 
 ## 1. Google Cloud Free Tier
 
@@ -113,7 +113,7 @@ docker compose up --build -d
 `docker-compose.yml` використовує два образи:
 
 - `Dockerfile` — легкий образ для `web`, `beat`, `bot`
-- `Dockerfile.worker` — образ для `worker` з Playwright Chromium
+- `Dockerfile.worker` — образ для `worker` з Selenium, Chromium і Chromedriver
 
 Якщо перед цим збірка падала через `no space left on device`, спочатку очисти диск:
 

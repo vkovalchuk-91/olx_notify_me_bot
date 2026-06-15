@@ -1,58 +1,54 @@
-import asyncio
 import re
-from urllib.parse import unquote, urlparse, parse_qs
-from playwright.async_api import async_playwright
+from urllib.parse import unquote, urlparse
+
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 def extract_filename_from_url(instabooster_url: str) -> str:
-    # Отримати значення параметра 'url='
     parsed = urlparse(instabooster_url)
-    query = parsed.query
-    file_url_match = re.search(r'url=(https[^&]+)', query)
+    file_url_match = re.search(r'url=(https[^&]+)', parsed.query)
     if not file_url_match:
-        return ""
+        return ''
 
-    encoded_file_url = file_url_match.group(1)
-    decoded_url = unquote(encoded_file_url)
+    decoded_url = unquote(file_url_match.group(1))
+    filename_match = re.search(r'/([^/?#]+\.(mp4|jpg|png))', decoded_url)
+    return filename_match.group(1) if filename_match else ''
 
-    # Виділяємо ім'я файлу з decoded URL
-    filename_match = re.search(r'/([^/?#]+\.((mp4)|(jpg)|(png)))', decoded_url)
-    if filename_match:
-        return filename_match.group(1)
-    return ""
 
-async def main():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)  # Можна зробити headless=True
-        context = await browser.new_context()
-        page = await context.new_page()
+def create_driver():
+    options = Options()
+    options.add_argument('--headless=new')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    return webdriver.Chrome(options=options)
 
-        # 1. Перейти на сайт
-        await page.goto("https://instabooster.com.ua/divitis-storis-z-instagram-anonimno/")
 
-        # 2. Ввести ім'я користувача
-        await page.fill("input#url", "tati_0904_")
+def main():
+    driver = create_driver()
+    try:
+        driver.get('https://instabooster.com.ua/divitis-storis-z-instagram-anonimno/')
+        driver.find_element(By.CSS_SELECTOR, 'input#url').send_keys('tati_0904_')
+        driver.find_element(By.CSS_SELECTOR, 'button.button').click()
 
-        # 3. Натиснути кнопку "Дивитися"
-        await page.click("button.button")
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'li.download-stories-preview--item'))
+        )
+        story_items = driver.find_elements(By.CSS_SELECTOR, 'li.download-stories-preview--item')
+        print(f'Знайдено {len(story_items)} історій:')
 
-        # 4. Дочекатися появи елементів із класом download-stories-preview--item
-        await page.wait_for_selector("li.download-stories-preview--item", timeout=15000)
-
-        # 5. Знайти всі елементи <li class="download-stories-preview--item">
-        story_items = await page.query_selector_all("li.download-stories-preview--item")
-
-        print(f"Знайдено {len(story_items)} історій:")
-
-        # 6. Вивести значення <a href= з кожного блоку
         for idx, item in enumerate(story_items, 1):
-            a_tag = await item.query_selector("a")
-            if a_tag:
-                href = await a_tag.get_attribute("href")
-                full_url = f"https://instabooster.com.ua{href}"
-                filename = extract_filename_from_url(full_url)
-                print(f"{idx}. {filename}\n {full_url}")
+            links = item.find_elements(By.CSS_SELECTOR, 'a')
+            if links:
+                href = links[0].get_attribute('href')
+                filename = extract_filename_from_url(href)
+                print(f'{idx}. {filename}\n {href}')
+    finally:
+        driver.quit()
 
-        await browser.close()
 
-asyncio.run(main())
+if __name__ == '__main__':
+    main()
