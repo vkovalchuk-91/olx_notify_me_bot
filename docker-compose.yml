@@ -8,6 +8,7 @@ services:
       retries: 5
 
   web:
+    image: olx_notify_me_bot-app
     build: .
     command: >
       sh -c "python manage.py migrate &&
@@ -30,7 +31,10 @@ services:
     restart: unless-stopped
 
   worker:
-    build: .
+    image: olx_notify_me_bot-worker
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
     command: celery -A config worker -l info --pool=solo --concurrency=1
     env_file: .env
     environment:
@@ -46,7 +50,7 @@ services:
     restart: unless-stopped
 
   beat:
-    build: .
+    image: olx_notify_me_bot-app
     command: celery -A config beat -l info
     env_file: .env
     environment:
@@ -62,7 +66,7 @@ services:
     restart: unless-stopped
 
   bot:
-    build: .
+    image: olx_notify_me_bot-app
     command: python manage.py run_telegram_bot
     env_file: .env
     environment:

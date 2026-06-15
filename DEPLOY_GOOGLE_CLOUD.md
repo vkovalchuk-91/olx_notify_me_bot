@@ -110,6 +110,18 @@ WEB_REGISTRATION_CODE_TTL_MINUTES=15
 docker compose up --build -d
 ```
 
+`docker-compose.yml` використовує два образи:
+
+- `Dockerfile` — легкий образ для `web`, `beat`, `bot`
+- `Dockerfile.worker` — образ для `worker` з Playwright Chromium
+
+Якщо перед цим збірка падала через `no space left on device`, очисти старі Docker-шари:
+
+```bash
+docker system prune -a -f
+docker builder prune -a -f
+```
+
 Міграції:
 
 ```bash
