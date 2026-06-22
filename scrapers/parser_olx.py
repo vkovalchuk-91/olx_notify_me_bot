@@ -3,12 +3,16 @@ import logging
 from typing import Dict, List, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse
 
+import os
+
 import httpx
 import requests
 from bs4 import BeautifulSoup
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+USE_ASYNC_MODE = os.getenv('USE_ASYNC_MODE', 'true').strip().lower() in {'1', 'true', 'yes', 'on'}
+WORKERS_NUMBER = int(os.getenv('WORKERS_NUMBER', '1'))
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -24,11 +28,11 @@ async def get_parsed_ads(olx_checker_queries: Dict[int, str]) -> Dict[int, List[
     logger.info(
         'OLX scraper: starting fetch for %s queries. Async mode=%s, workers=%s',
         len(olx_checker_queries),
-        settings.USE_ASYNC_MODE,
-        settings.WORKERS_NUMBER if settings.USE_ASYNC_MODE else 1,
+        USE_ASYNC_MODE,
+        WORKERS_NUMBER if USE_ASYNC_MODE else 1,
         extra={'job_name': 'check_new_ads'},
     )
-    if settings.USE_ASYNC_MODE:
+    if USE_ASYNC_MODE:
         queries_with_responses_text = await get_responses_text_with_async_mode(olx_checker_queries)
     else:
         queries_with_responses_text = get_responses_text_with_sync_mode(olx_checker_queries)
@@ -54,10 +58,10 @@ async def get_responses_text_with_async_mode(olx_checker_queries: Dict[int, str]
     async with httpx.AsyncClient(headers=HEADERS, follow_redirects=True) as client:
         workers = [
             asyncio.create_task(worker(queue, client, queries_with_responses_text, queued_urls))
-            for _ in range(settings.WORKERS_NUMBER)
+            for _ in range(WORKERS_NUMBER)
         ]
         await queue.join()
-        for _ in range(settings.WORKERS_NUMBER):
+        for _ in range(WORKERS_NUMBER):
             await queue.put(None)
         await asyncio.gather(*workers)
     return queries_with_responses_text

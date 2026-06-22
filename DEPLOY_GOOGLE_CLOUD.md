@@ -1,65 +1,13 @@
-# Deploy To Google Cloud Free Tier
+# Deploy on Google Cloud e2-micro (Telegram-only)
 
-Ця інструкція описує безкоштовний або майже безкоштовний деплой проєкту на Google Cloud.
+Мінімальний async Telegram-бот без Docker, Django, Redis і Celery.
 
-Рекомендований варіант для цього проєкту: Google Compute Engine `e2-micro` + Docker Compose + безкоштовний український домен `.pp.ua` + Caddy для HTTPS.
+## 1. Створи VM
 
-Cloud Run менш підходить, бо проєкт має кілька довгоживучих сервісів: `web`, `worker`, `beat`, `bot`, `redis`, Playwright і локальну SQLite базу для логів.
-
-## 1. Google Cloud Free Tier
-
-Створи VM у Google Cloud:
-
-- Product: `Compute Engine`
 - Machine type: `e2-micro`
-- Region: тільки `us-central1`, `us-west1` або `us-east1`
 - OS: `Ubuntu 24.04 LTS`
-- Disk: `Standard persistent disk`, до `30 GB`
-- Firewall: увімкнути `Allow HTTP traffic` і `Allow HTTPS traffic`
-
-Не використовуй `Cloud SQL`, `Load Balancer`, `Cloud NAT`, `Cloud DNS`, якщо хочеш тримати деплой максимально безкоштовним.
-
-Рекомендовано створити budget alert:
-
-```text
-Billing -> Budgets & alerts -> Create budget
-```
-
-Наприклад, встанови бюджет `$1`.
-
-## 2. Підключення до VM
-
-Підключись до VM:
-
-```bash
-ssh your-user@VM_EXTERNAL_IP
-```
-
-Онови сервер:
-
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y git curl ca-certificates
-```
-
-Встанови Docker:
-
-```bash
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER
-```
-
-Вийди з SSH і зайди знову, щоб застосувалась група `docker`.
-
-Перевір Docker Compose:
-
-```bash
-docker compose version
-```
-
-## 3. Додай Swap
-
-На `e2-micro` мало RAM, тому краще додати swap:
+- Disk: `20-30 GB`
+- Swap: `2 GB` (рекомендовано)
 
 ```bash
 sudo fallocate -l 2G /swapfile
@@ -69,192 +17,89 @@ sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-## 4. Завантаж Проєкт
+## 2. Встанови залежності
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv git chromium chromium-driver
+```
+
+## 3. Завантаж проєкт
 
 ```bash
 git clone YOUR_REPO_URL
 cd olx_notify_me_bot
-```
-
-Створи `.env`:
-
-```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 cp .env.exsample .env
 nano .env
 ```
 
-Приклад важливих змінних:
+У `.env` обов'язково:
 
 ```env
-DEBUG=false
-SECRET_KEY=your-long-secret-key
-ALLOWED_HOSTS=my-olx-bot.pp.ua,VM_EXTERNAL_IP
-
-DB_HOST=your-external-postgres-host
-DB_NAME=your-db
-DB_USER=your-user
-DB_PASSWORD=your-password
-DB_PORT=5432
-
-LOG_DB_NAME=/app/local_data/job_logs.sqlite3
-
-TELEGRAM_TOKEN=your-token
-TELEGRAM_BOT_USERNAME=your_bot_username_without_at
-WEB_REGISTRATION_BASE_URL=https://my-olx-bot.pp.ua
-WEB_REGISTRATION_CODE_TTL_MINUTES=15
+TELEGRAM_TOKEN=...
+ADMIN_TELEGRAM_IDS=YOUR_TELEGRAM_ID
+WORKERS_NUMBER=1
 ```
 
-## 5. Запусти Проєкт
+## 4. Запуск
 
 ```bash
-docker compose up --build -d
+source .venv/bin/activate
+python main.py
 ```
 
-`docker-compose.yml` використовує два образи:
-
-- `Dockerfile` — легкий образ для `web`, `beat`, `bot`
-- `Dockerfile.worker` — образ для `worker` з Playwright Chromium
-
-Якщо перед цим збірка падала через `no space left on device`, спочатку очисти диск:
+## 5. systemd service
 
 ```bash
-docker compose down
-docker system prune -a -f
-docker builder prune -a -f
-sudo apt-get clean
-sudo journalctl --vacuum-time=3d
-df -h
-docker system df
+sudo nano /etc/systemd/system/olx-notify-bot.service
 ```
 
-Потім збирай по частинах:
+```ini
+[Unit]
+Description=OLX Notify Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/olx_notify_me_bot
+Environment=PATH=/home/YOUR_USER/olx_notify_me_bot/.venv/bin
+ExecStart=/home/YOUR_USER/olx_notify_me_bot/.venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
 
 ```bash
-docker compose build web
-docker compose up -d redis web beat bot
-docker compose build worker
-docker compose up -d worker
+sudo systemctl daemon-reload
+sudo systemctl enable olx-notify-bot
+sudo systemctl start olx-notify-bot
+sudo systemctl status olx-notify-bot
 ```
 
-Якщо місця все одно не вистачає, збільш boot disk до `30 GB` у Google Cloud Console і розшир файлову систему на VM.
+## 6. Адмін-функції в Telegram
 
-Міграції:
+Для користувачів з `ADMIN_TELEGRAM_IDS` або з прапорцем `is_admin` у БД:
+
+- статистика
+- список користувачів
+- всі моніторинги
+- останні оголошення
+- Instagram підписки
+- логи
+- ручний запуск перевірок OLX/Rieltor та Instagram
+
+## 7. Оновлення
 
 ```bash
-docker compose exec web python manage.py migrate
-docker compose exec web python manage.py migrate --database logs audit_logs
-docker compose exec web python manage.py createsuperuser
-```
-
-Перевір логи:
-
-```bash
-docker compose logs -f web
-docker compose logs -f worker
-docker compose logs -f bot
-```
-
-## 6. Безкоштовний Український Домен `.pp.ua`
-
-Для українського безкоштовного домену можна використати зону `.pp.ua`, наприклад:
-
-```text
-my-olx-bot.pp.ua
-```
-
-Це безкоштовний український домен. Його можна зареєструвати через акредитованого реєстратора, наприклад NIC.UA:
-
-```text
-https://nic.ua/uk/domains/.pp.ua
-```
-
-Загальні кроки:
-
-1. Перевір, чи вільний потрібний домен `.pp.ua`.
-2. Подай заявку на реєстрацію через реєстратора.
-3. Активуй домен через SMS або Telegram-бота `@ppuabot`.
-4. Додай DNS `A record`, який вказує на `External IP` твоєї Google VM.
-
-Приклад DNS запису:
-
-```text
-Type: A
-Name: @
-Value: VM_EXTERNAL_IP
-TTL: default
-```
-
-Якщо хочеш використовувати `www`, додай ще один запис:
-
-```text
-Type: CNAME
-Name: www
-Value: my-olx-bot.pp.ua
-TTL: default
-```
-
-Після цього онови `.env`:
-
-```env
-ALLOWED_HOSTS=my-olx-bot.pp.ua,www.my-olx-bot.pp.ua
-WEB_REGISTRATION_BASE_URL=https://my-olx-bot.pp.ua
-```
-
-Важливо: для `.pp.ua` можуть бути обмеження, наприклад до 3 доменів на один номер за 30 днів. Також домен зазвичай треба продовжувати раз на рік.
-
-## 7. HTTPS Через Caddy
-
-Встанови Caddy:
-
-```bash
-sudo apt install -y caddy
-```
-
-Відкрий конфіг:
-
-```bash
-sudo nano /etc/caddy/Caddyfile
-```
-
-Приклад:
-
-```caddy
-my-olx-bot.pp.ua {
-    reverse_proxy 127.0.0.1:8000
-}
-```
-
-Перезапусти Caddy:
-
-```bash
-sudo systemctl reload caddy
-```
-
-Caddy сам отримає безкоштовний SSL-сертифікат Let's Encrypt.
-
-## 8. Оновлення Після Змін
-
-Коли оновлюєш код:
-
-```bash
+cd ~/olx_notify_me_bot
 git pull
-docker compose up --build -d
-docker compose exec web python manage.py migrate
-docker compose exec web python manage.py migrate --database logs audit_logs
+source .venv/bin/activate
+pip install -r requirements.txt
+sudo systemctl restart olx-notify-bot
 ```
-
-Сайт буде доступний за адресою:
-
-```text
-https://my-olx-bot.pp.ua
-```
-
-## Важливі Нотатки
-
-- Для безкоштовного Compute Engine використовуй тільки регіони `us-central1`, `us-west1` або `us-east1`.
-- Не створюй Google Cloud Load Balancer, якщо хочеш уникнути платних витрат.
-- Не використовуй Cloud SQL для цього free-tier варіанту.
-- Основна БД може бути зовнішнім free PostgreSQL.
-- Логи проєкту зберігаються в локальній SQLite базі через `LOG_DB_NAME`.
-- Домен `.pp.ua` безкоштовний, але його треба активувати через SMS або Telegram-бота і продовжувати після завершення строку дії.
-- Після деплою варто перевірити Billing Dashboard і Budget Alerts.
