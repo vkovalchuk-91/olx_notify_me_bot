@@ -1,9 +1,7 @@
+import asyncio
 from pathlib import Path
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-
+from playwright.async_api import async_playwright
 
 URLS = [
     'https://anonyig.com/en/',
@@ -13,59 +11,40 @@ URLS = [
 ]
 
 
-def create_driver():
-    options = Options()
-    options.add_argument('--headless=new')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--ignore-certificate-errors')
-    return webdriver.Chrome(options=options)
-
-
-def inspect_page(driver, url: str) -> None:
+async def inspect_page(page, url: str) -> None:
     print('---', url)
-    driver.get(url)
-    print('url', driver.current_url)
-    print('title', driver.title)
-    inputs = [
-        {
-            'placeholder': element.get_attribute('placeholder'),
-            'name': element.get_attribute('name'),
-            'type': element.get_attribute('type'),
-            'id': element.get_attribute('id'),
-            'className': element.get_attribute('class'),
-        }
-        for element in driver.find_elements(By.CSS_SELECTOR, 'input, textarea')
-    ]
+    await page.goto(url, wait_until='domcontentloaded', timeout=60000)
+    print('url', page.url)
+    print('title', await page.title())
+    inputs = await page.eval_on_selector_all(
+        'input, textarea',
+        'els => els.map(el => ({placeholder: el.placeholder, name: el.name, type: el.type, id: el.id, className: el.className}))',
+    )
     print('inputs', inputs)
-    controls = [
-        {
-            'tag': element.tag_name,
-            'text': element.text[:80],
-            'src': element.get_attribute('src'),
-            'className': element.get_attribute('class'),
-            'action': element.get_attribute('action'),
-        }
-        for element in driver.find_elements(By.CSS_SELECTOR, 'button, img[src*="search"], [type="submit"], form')
-    ]
-    print('buttons/forms', controls[:20])
-    print('media_items', len(driver.find_elements(By.CSS_SELECTOR, 'li.profile-media-list__item')))
-    html = driver.page_source
+    buttons = await page.eval_on_selector_all(
+        'button, img[src*="search"], [type="submit"], form',
+        'els => els.map(el => ({tag: el.tagName, text: (el.innerText || "").slice(0,80), src: el.getAttribute("src"), className: el.className, action: el.getAttribute("action")}))',
+    )
+    print('buttons/forms', buttons[:20])
+    media = await page.query_selector_all('li.profile-media-list__item')
+    print('media_items', len(media))
+    html = await page.content()
     Path('/tmp/anonyig.html').write_text(html[:50000], encoding='utf-8')
     print('html_saved', min(len(html), 50000))
 
 
-def main():
-    driver = create_driver()
-    try:
+async def main():
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch(headless=True)
+        context = await browser.new_context(ignore_https_errors=True)
+        page = await context.new_page()
         for url in URLS:
             try:
-                inspect_page(driver, url)
+                await inspect_page(page, url)
             except Exception as exc:
                 print('error', exc)
-    finally:
-        driver.quit()
+        await browser.close()
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
