@@ -1,95 +1,78 @@
 import asyncio
 import logging
 import os
-import shutil
 import time
 from typing import Dict, List, Optional
 from urllib.parse import parse_qs, urlparse
 
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, WebDriverException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from playwright.async_api import Locator, Page, TimeoutError as PlaywrightTimeoutError, async_playwright
 
 logger = logging.getLogger(__name__)
 
 
 async def get_parsed_content(username: str, user_id: int) -> List[Dict]:
-    return await asyncio.to_thread(_get_parsed_content_sync, username, user_id)
-
-
-def _get_parsed_content_sync(username: str, user_id: int) -> List[Dict]:
-    parsed_content = []
+    parsed_content: List[Dict] = []
     logger.info('Instagram scraper: opening anonyig.com for @%s', username)
-    driver = _create_driver()
-    try:
-        driver.get('https://anonyig.com/en/')
-        _search_username(driver, username)
 
+    async with async_playwright() as playwright:
+        browser = await _launch_browser(playwright)
         try:
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'li.profile-media-list__item'))
+            context = await browser.new_context(
+                ignore_https_errors=True,
+                viewport={'width': 1365, 'height': 1600},
             )
-            media_items = _collect_media_items(driver, max_items=30, max_seconds=10, pause_seconds=2)
-            parsed_content.extend(_extract_items(media_items, 'Post', user_id, username))
-        except TimeoutException:
-            logger.info('Instagram scraper: @%s posts tab did not load within 5 sec', username)
+            page = await context.new_page()
+            page.set_default_timeout(60_000)
+            await page.goto('https://anonyig.com/en/', wait_until='domcontentloaded')
+            await _search_username(page, username)
 
-        if _switch_to_stories_tab(driver, username):
             try:
-                WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'li.profile-media-list__item'))
-                )
-                media_items = _collect_media_items(driver, stop_when_stable=True, pause_seconds=3)
-                parsed_content.extend(_extract_items(media_items, 'Story', user_id, username))
-            except TimeoutException:
-                logger.info('Instagram scraper: @%s stories tab did not load within 5 sec', username)
-    finally:
-        driver.quit()
+                await page.wait_for_selector('li.profile-media-list__item', timeout=5_000)
+                media_items = await _collect_media_items(page, max_items=30, max_seconds=10, pause_seconds=2)
+                parsed_content.extend(await _extract_items(media_items, 'Post', user_id, username))
+            except PlaywrightTimeoutError:
+                logger.info('Instagram scraper: @%s posts tab did not load within 5 sec', username)
+
+            if await _switch_to_stories_tab(page):
+                try:
+                    await page.wait_for_selector('li.profile-media-list__item', timeout=5_000)
+                    media_items = await _collect_media_items(page, stop_when_stable=True, pause_seconds=3)
+                    parsed_content.extend(await _extract_items(media_items, 'Story', user_id, username))
+                except PlaywrightTimeoutError:
+                    logger.info('Instagram scraper: @%s stories tab did not load within 5 sec', username)
+        finally:
+            await browser.close()
 
     logger.info('Instagram scraper: finished @%s, total downloadable items=%s', username, len(parsed_content))
     return parsed_content
 
 
-def _create_driver() -> WebDriver:
-    options = Options()
-    options.add_argument('--headless=new')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--ignore-certificate-errors')
-    options.add_argument('--window-size=1365,1600')
-
-    chrome_binary = os.getenv('CHROME_BIN') or shutil.which('chromium') or shutil.which('chromium-browser')
-    if chrome_binary:
-        options.binary_location = chrome_binary
-
-    chromedriver = shutil.which('chromedriver')
-    service = Service(chromedriver) if chromedriver else None
-    driver = webdriver.Chrome(service=service, options=options) if service else webdriver.Chrome(options=options)
-    driver.set_page_load_timeout(60)
-    return driver
+async def _launch_browser(playwright):
+    args = [
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--ignore-certificate-errors',
+    ]
+    chrome_bin = os.getenv('CHROME_BIN', '').strip()
+    if chrome_bin:
+        logger.info('Instagram scraper: using Chrome at %s', chrome_bin)
+        return await playwright.chromium.launch(headless=True, executable_path=chrome_bin, args=args)
+    logger.info('Instagram scraper: using Playwright bundled Chromium')
+    return await playwright.chromium.launch(headless=True, args=args)
 
 
-def _search_username(driver: WebDriver, username: str) -> None:
-    wait = WebDriverWait(driver, 20)
-    wait.until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
-    search_input = _find_search_input(driver)
+async def _search_username(page: Page, username: str) -> None:
+    await page.wait_for_selector('body')
+    search_input = await _find_search_input(page)
     if not search_input:
-        raise TimeoutException('Anonyig search input not found')
-    search_input.clear()
-    search_input.send_keys(username)
-    if not _click_search_button(driver):
-        search_input.send_keys(Keys.ENTER)
+        raise PlaywrightTimeoutError('Anonyig search input not found')
+    await search_input.fill(username)
+    if not await _click_search_button(page):
+        await search_input.press('Enter')
 
 
-def _find_search_input(driver: WebDriver) -> Optional[WebElement]:
+async def _find_search_input(page: Page) -> Optional[Locator]:
     selectors = [
         'input[placeholder="@username or link"]',
         'input[placeholder*="username"]',
@@ -98,75 +81,77 @@ def _find_search_input(driver: WebDriver) -> Optional[WebElement]:
         'form input',
     ]
     for selector in selectors:
-        for element in driver.find_elements(By.CSS_SELECTOR, selector):
-            if element.is_displayed() and element.is_enabled():
+        locator = page.locator(selector)
+        for index in range(await locator.count()):
+            element = locator.nth(index)
+            if await element.is_visible() and await element.is_enabled():
                 return element
     return None
 
 
-def _click_search_button(driver: WebDriver) -> bool:
+async def _click_search_button(page: Page) -> bool:
     for selector in ('img[src*="search"]', 'button[type="submit"]', 'form button'):
-        for element in driver.find_elements(By.CSS_SELECTOR, selector):
-            if not element.is_displayed():
+        locator = page.locator(selector)
+        for index in range(await locator.count()):
+            element = locator.nth(index)
+            if not await element.is_visible():
                 continue
             try:
-                element.click()
+                await element.click(timeout=2_000)
                 return True
-            except WebDriverException:
-                driver.execute_script('arguments[0].click();', element)
+            except PlaywrightTimeoutError:
+                await element.evaluate('element => element.click()')
                 return True
     return False
 
 
-def _collect_media_items(
-    driver: WebDriver,
+async def _collect_media_items(
+    page: Page,
     max_items: Optional[int] = None,
     max_seconds: int = 20,
     pause_seconds: int = 2,
     stop_when_stable: bool = False,
-) -> List[WebElement]:
+) -> Locator:
     start_time = time.time()
     previous_count = -1
-    media_items: List[WebElement] = []
+    locator = page.locator('ul.profile-media-list li.profile-media-list__item')
     while time.time() - start_time < max_seconds:
-        media_items = driver.find_elements(By.CSS_SELECTOR, 'ul.profile-media-list li.profile-media-list__item')
-        if max_items and len(media_items) >= max_items:
+        count = await locator.count()
+        if max_items and count >= max_items:
             break
-        if stop_when_stable and previous_count == len(media_items):
+        if stop_when_stable and previous_count == count:
             break
-        previous_count = len(media_items)
-        driver.execute_script('window.scrollBy(0, window.innerHeight * 2);')
-        time.sleep(pause_seconds)
-    return media_items
+        previous_count = count
+        await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
+        await asyncio.sleep(pause_seconds)
+    return locator
 
 
-def _switch_to_stories_tab(driver: WebDriver, username: str) -> bool:
-    stories_buttons = driver.find_elements(
-        By.XPATH,
-        '//li[contains(@class, "tabs-component__item")]'
-        '[.//button[contains(@class, "tabs-component__button") and '
-        'contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "stories")]]',
-    )
-    if not stories_buttons:
+async def _switch_to_stories_tab(page: Page) -> bool:
+    stories_tab = page.locator('li.tabs-component__item').filter(
+        has=page.locator('button.tabs-component__button', has_text='stories')
+    ).first
+    if await stories_tab.count() == 0:
         return False
-    stories_tab = stories_buttons[0]
-    button = stories_tab.find_element(By.CSS_SELECTOR, 'button.tabs-component__button')
-    if 'tabs-component__button--disabled' in (button.get_attribute('class') or ''):
+    button = stories_tab.locator('button.tabs-component__button').first
+    button_class = await button.get_attribute('class') or ''
+    if 'tabs-component__button--disabled' in button_class:
         return False
     try:
-        stories_tab.click()
+        await stories_tab.click(timeout=2_000)
         return True
-    except WebDriverException:
+    except PlaywrightTimeoutError:
         return False
 
 
-def _extract_items(media_items: List[WebElement], content_type: str, user_id: int, username: str) -> List[Dict]:
-    items = []
-    for item in media_items:
-        download_btns = item.find_elements(By.CSS_SELECTOR, 'a.button.button--filled.button__download')
-        if not download_btns:
+async def _extract_items(media_items: Locator, content_type: str, user_id: int, username: str) -> List[Dict]:
+    items: List[Dict] = []
+    for index in range(await media_items.count()):
+        item = media_items.nth(index)
+        download_btn = item.locator('a.button.button--filled.button__download').first
+        if await download_btn.count() == 0:
             continue
-        url = download_btns[0].get_attribute('href')
+        url = await download_btn.get_attribute('href')
         if not url:
             continue
         items.append({
