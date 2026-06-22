@@ -47,6 +47,14 @@ async def get_parsed_content(username: str, user_id: int) -> List[Dict]:
     return parsed_content
 
 
+COMMON_CHROME_PATHS = (
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/snap/bin/chromium',
+    '/usr/bin/google-chrome-stable',
+)
+
+
 async def _launch_browser(playwright):
     args = [
         '--no-sandbox',
@@ -54,12 +62,42 @@ async def _launch_browser(playwright):
         '--disable-gpu',
         '--ignore-certificate-errors',
     ]
-    chrome_bin = os.getenv('CHROME_BIN', '').strip()
-    if chrome_bin:
-        logger.info('Instagram scraper: using Chrome at %s', chrome_bin)
-        return await playwright.chromium.launch(headless=True, executable_path=chrome_bin, args=args)
+    for chrome_bin in _iter_chrome_bins():
+        try:
+            logger.info('Instagram scraper: using Chrome at %s', chrome_bin)
+            return await playwright.chromium.launch(headless=True, executable_path=chrome_bin, args=args)
+        except Exception as error:
+            if _is_missing_executable_error(error):
+                logger.warning('Instagram scraper: Chrome not found at %s', chrome_bin)
+                continue
+            raise
+
     logger.info('Instagram scraper: using Playwright bundled Chromium')
-    return await playwright.chromium.launch(headless=True, args=args)
+    try:
+        return await playwright.chromium.launch(headless=True, args=args)
+    except Exception as error:
+        if not _is_missing_executable_error(error):
+            raise
+        raise RuntimeError(
+            'No Chromium found. Run as bot user: playwright install chromium'
+        ) from error
+
+
+def _iter_chrome_bins():
+    seen = set()
+    explicit = os.getenv('CHROME_BIN', '').strip()
+    if explicit:
+        yield explicit
+        seen.add(explicit)
+    for path in COMMON_CHROME_PATHS:
+        if path not in seen:
+            yield path
+            seen.add(path)
+
+
+def _is_missing_executable_error(error: Exception) -> bool:
+    message = str(error)
+    return "Executable doesn't exist" in message or "Failed to launch chromium because executable doesn't exist" in message
 
 
 async def _search_username(page: Page, username: str) -> None:
